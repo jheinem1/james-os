@@ -19,7 +19,15 @@ set -ouex pipefail
 # Disable COPRs so they don't end up enabled on the final image:
 # dnf5 -y copr disable ublue-os/staging
 
+# Install 1Password and 1Password CLI
 dnf config-manager --add-repo=https://downloads.1password.com/linux/rpm/stable/$basearch/
+dnf install -y 1password
+dnf install -y 1password-cli
+
+dnf install -y zed
+dnf install -y konsole
+dnf install -y piper
+dnf install -y yakuake
 
 #### Example for enabling a System Unit File
 
