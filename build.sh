@@ -19,6 +19,8 @@ set -ouex pipefail
 # Disable COPRs so they don't end up enabled on the final image:
 # dnf5 -y copr disable ublue-os/staging
 
+dnf config-manager --add-repo=https://downloads.1password.com/linux/rpm/stable/$basearch/
+
 #### Example for enabling a System Unit File
 
 # systemctl enable podman.socket
