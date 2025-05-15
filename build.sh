@@ -6,11 +6,11 @@ basearch=${basearch:-$(uname -m)}
 ### Install packages
 
 # Add 1Password repo
-dnf5 -y config-manager addrepo --from-repofile=https://downloads.1password.com/linux/rpm/stable/$basearch
+# dnf5 -y config-manager addrepo --from-repofile=https://downloads.1password.com/linux/rpm/stable/$basearch
 
 # Install packages with dnf5
-dnf5 install -y 1password
-dnf5 install -y 1password-cli
+# dnf5 install -y 1password
+# dnf5 install -y 1password-cli
 dnf5 install -y konsole
 dnf5 install -y piper
 dnf5 install -y yakuake
