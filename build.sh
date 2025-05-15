@@ -6,7 +6,7 @@ basearch=${basearch:-$(uname -m)}
 ### Install packages
 
 # Add 1Password repo
-dnf5 config-manager add-repo https://downloads.1password.com/linux/rpm/stable/$basearch/
+curl -o /etc/yum.repos.d/1password.repo https://downloads.1password.com/linux/rpm/stable/$basearch/1password.repo
 
 # Install packages with dnf5
 dnf5 install -y 1password
