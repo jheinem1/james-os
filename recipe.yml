@@ -5,3 +5,9 @@ modules:
   - type: bling
     install:
       - 1password
+
+  - type: rpm-ostree
+    install:
+      - konsole     # terminal
+      - piper       # Logitech-settings GUI
+      - yakuake     # drop-down terminal
