@@ -9,7 +9,9 @@ dnf config-manager --add-repo=https://downloads.1password.com/linux/rpm/stable/$
 dnf install -y 1password
 dnf install -y 1password-cli
 
-dnf install -y zed
 dnf install -y konsole
 dnf install -y piper
 dnf install -y yakuake
+
+# Run Zed install script
+curl -f https://zed.dev/install.sh | sh
