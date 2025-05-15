@@ -1,8 +1,10 @@
 FROM ghcr.io/ublue-os/bazzite:stable
 
 COPY build.sh /tmp/build.sh
+ENV GNUPGHOME=/var/tmp/gnupg
+
 RUN chmod +x /tmp/build.sh && \
-    mkdir -p /usr/etc/alternatives && \
+    mkdir -p "$GNUPGHOME" /var/lib/alternatives && chmod 700 "$GNUPGHOME" && \
     /tmp/build.sh && \
     rm -rf /var/cache/dnf /tmp/* && \
     ostree container commit
