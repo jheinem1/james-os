@@ -13,7 +13,3 @@ dnf install -y zed
 dnf install -y konsole
 dnf install -y piper
 dnf install -y yakuake
-
-#### Example for enabling a System Unit File
-
-# systemctl enable podman.socket
