@@ -9,6 +9,3 @@ basearch=${basearch:-$(uname -m)}
 dnf5 install -y konsole
 dnf5 install -y piper
 dnf5 install -y yakuake
-
-# Run Zed install script
-curl -f https://zed.dev/install.sh | sh
