@@ -1,6 +1,7 @@
 #!/bin/bash
 
 set -ouex pipefail
+basearch=${basearch:-$(uname -m)}
 
 ### Install packages
 
