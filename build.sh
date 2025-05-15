@@ -6,8 +6,7 @@ basearch=${basearch:-$(uname -m)}
 ### Install packages
 
 # Install 1Password and 1Password CLI
-dnf install -y dnf-plugins-core
-dnf config-manager --add-repo=https://downloads.1password.com/linux/rpm/stable/$basearch/
+dnf config-manager --add-repo https://downloads.1password.com/linux/rpm/stable/$basearch/
 dnf install -y 1password
 dnf install -y 1password-cli
 
