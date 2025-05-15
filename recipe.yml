@@ -1,0 +1,7 @@
+image-name: james-os
+base-image: ghcr.io/ublue-os/bazzite:stable
+
+modules:
+  - type: bling
+    install:
+      - 1password
