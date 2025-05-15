@@ -5,14 +5,15 @@ basearch=${basearch:-$(uname -m)}
 
 ### Install packages
 
-# Install 1Password and 1Password CLI
-dnf config-manager --add-repo https://downloads.1password.com/linux/rpm/stable/$basearch/
-dnf install -y 1password
-dnf install -y 1password-cli
+# Add 1Password repo
+dnf5 config-manager add-repo https://downloads.1password.com/linux/rpm/stable/$basearch/
 
-dnf install -y konsole
-dnf install -y piper
-dnf install -y yakuake
+# Install packages with dnf5
+dnf5 install -y 1password
+dnf5 install -y 1password-cli
+dnf5 install -y konsole
+dnf5 install -y piper
+dnf5 install -y yakuake
 
 # Run Zed install script
 curl -f https://zed.dev/install.sh | sh
