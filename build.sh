@@ -78,7 +78,7 @@ EOF
 
 # tmpfiles rule – recreates /opt/1Password symlink on every boot
 cat > /usr/lib/tmpfiles.d/onepassword.conf <<'EOF'
-L /opt/1Password - - - - /usr/lib/1Password
+L /var/opt/1Password - - - - /usr/lib/1Password
 EOF
 
 ###############################################################################
