@@ -92,10 +92,9 @@ rm -rf /var/cache/dnf
 # Pin Mesa to 25.0.2 (last Gamescope-friendly build)
 ###############################################################################
 MESA_VER=25.0.2
-MESA_REL=3          # Koji release number to fetch (see notes)
-ARCHES="x86_64 i686"  # keep multilib wine / Steam working
+MESA_REL=3
+ARCHES="x86_64"
 
-# Where Fedora keeps the archived RPMs — change fc42 if you ever rebase
 KOJI=https://kojipkgs.fedoraproject.org/packages/mesa/${MESA_VER}/${MESA_REL}.fc42
 
 mkdir -p /tmp/mesa-${MESA_VER}
@@ -117,7 +116,12 @@ PKGS=(
 echo ">> downloading Mesa ${MESA_VER}-${MESA_REL}.fc42 …"
 for pkg in "${PKGS[@]}"; do
   for arch in ${ARCHES}; do
-    curl -L -O  "${KOJI}/${arch}/${pkg}-${MESA_VER}-${MESA_REL}.fc42.${arch}.rpm"
+    url="${KOJI}/${arch}/${pkg}-${MESA_VER}-${MESA_REL}.fc42.${arch}.rpm"
+    if curl -f -L -O "$url"; then
+      echo "downloaded $(basename "$url")"
+    else
+      echo "$url not found, skipping"
+    fi
   done
 done
 
