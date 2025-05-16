@@ -87,3 +87,43 @@ EOF
 rm -f /etc/yum.repos.d/1password.repo /etc/yum.repos.d/vscode.repo
 dnf5 clean all
 rm -rf /var/cache/dnf
+
+###############################################################################
+# Pin Mesa to 25.0.2 (last Gamescope-friendly build)
+###############################################################################
+MESA_VER=25.0.2
+MESA_REL=3          # Koji release number to fetch (see notes)
+ARCHES="x86_64 i686"  # keep multilib wine / Steam working
+
+# Where Fedora keeps the archived RPMs — change fc42 if you ever rebase
+KOJI=https://kojipkgs.fedoraproject.org/packages/mesa/${MESA_VER}/${MESA_REL}.fc42
+
+mkdir -p /tmp/mesa-${MESA_VER}
+cd       /tmp/mesa-${MESA_VER}
+
+# Sub-package list the loader insists be from the *same* build
+PKGS=(
+  mesa-filesystem
+  mesa-libglapi
+  mesa-libEGL
+  mesa-libGL
+  mesa-libgbm
+  mesa-dri-drivers
+  mesa-vulkan-drivers
+  mesa-va-drivers
+  mesa-vdpau-drivers
+)
+
+echo ">> downloading Mesa ${MESA_VER}-${MESA_REL}.fc42 …"
+for pkg in "${PKGS[@]}"; do
+  for arch in ${ARCHES}; do
+    curl -L -O  "${KOJI}/${arch}/${pkg}-${MESA_VER}-${MESA_REL}.fc42.${arch}.rpm"
+  done
+done
+
+echo ">> replacing base Mesa with ${MESA_VER}"
+rpm-ostree override replace ./*.rpm
+
+# clean up temp files so they don't bloat the layer
+cd /
+rm -rf /tmp/mesa-${MESA_VER}
