@@ -48,6 +48,12 @@ dnf5 install -y \
   piper \
   yakuake
 
+# Update plasma desktop and KDE components
+dnf5 update -y \
+  plasma-desktop \
+  plasma-workspace \
+  kde-applications
+
 ###############################################################################
 # 4. Relocate 1Password into /usr (so it's captured in the OSTree commit)
 ###############################################################################
