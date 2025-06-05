@@ -46,7 +46,8 @@ dnf5 install -y \
   code \
   konsole \
   piper \
-  yakuake
+  yakuake \
+  https://github.com/Legcord/Legcord/releases/download/v1.1.5/Legcord-1.1.5-linux-x86_64.rpm
 
 # Update plasma desktop and KDE components
 dnf5 update -y \
