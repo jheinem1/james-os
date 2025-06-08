@@ -1,8 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-hostnamectl set-hostname james-os
-
 ###############################################################################
 # 0. Directories that must exist during the RPM unpack phase
 ###############################################################################
