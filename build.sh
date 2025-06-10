@@ -37,9 +37,17 @@ EOF
 rpm --import https://packages.microsoft.com/keys/microsoft.asc
 
 ###############################################################################
+# 3. Gamescope Git repo from COPR
+###############################################################################
+curl -L -o /etc/yum.repos.d/vulongm-gamescope-git.repo \
+  "https://copr.fedorainfracloud.org/coprs/vulongm/gamescope-git/repo/fedora-\$releasever/vulongm-gamescope-git-fedora-\$releasever.repo"
+rpm --import https://download.copr.fedorainfracloud.org/results/vulongm/gamescope-git/pubkey.gpg
+
+###############################################################################
 # 3. Install all desired packages in one shot
 ###############################################################################
 dnf5 makecache -y
+dnf5 remove -y gamescope || true
 dnf5 install -y \
   1password \
   1password-cli \
@@ -48,6 +56,7 @@ dnf5 install -y \
   piper \
   yakuake \
   corectrl \
+  gamescope \
   https://github.com/Legcord/Legcord/releases/download/v1.1.5/Legcord-1.1.5-linux-x86_64.rpm
 
 # Update plasma desktop and KDE components
@@ -91,6 +100,6 @@ EOF
 ###############################################################################
 # 6. Optional cleanup – drop repo files & dnf caches to keep image lean
 ###############################################################################
-rm -f /etc/yum.repos.d/1password.repo /etc/yum.repos.d/vscode.repo
+rm -f /etc/yum.repos.d/1password.repo /etc/yum.repos.d/vscode.repo /etc/yum.repos.d/vulongm-gamescope-git.repo
 dnf5 clean all
 rm -rf /var/cache/dnf
