@@ -39,9 +39,9 @@ rpm --import https://packages.microsoft.com/keys/microsoft.asc
 ###############################################################################
 # 3. Gamescope Git repo from COPR
 ###############################################################################
-curl -L -o /etc/yum.repos.d/vulongm-gamescope-git.repo \
-  "https://copr.fedorainfracloud.org/coprs/vulongm/gamescope-git/repo/fedora-\$releasever/vulongm-gamescope-git-fedora-\$releasever.repo"
-rpm --import https://download.copr.fedorainfracloud.org/results/vulongm/gamescope-git/pubkey.gpg
+# Install the copr plugin then enable the gamescope-git repo
+dnf5 install -y 'dnf-command(copr)'
+dnf5 copr enable -y vulongm/gamescope-git
 
 ###############################################################################
 # 3. Install all desired packages in one shot
@@ -100,6 +100,8 @@ EOF
 ###############################################################################
 # 6. Optional cleanup – drop repo files & dnf caches to keep image lean
 ###############################################################################
-rm -f /etc/yum.repos.d/1password.repo /etc/yum.repos.d/vscode.repo /etc/yum.repos.d/vulongm-gamescope-git.repo
+rm -f /etc/yum.repos.d/1password.repo \
+       /etc/yum.repos.d/vscode.repo \
+       /etc/yum.repos.d/_copr:copr.fedorainfracloud.org:vulongm:gamescope-git.repo
 dnf5 clean all
 rm -rf /var/cache/dnf
