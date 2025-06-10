@@ -47,7 +47,7 @@ dnf5 copr enable -y vulongm/gamescope-git
 # 3. Install all desired packages in one shot
 ###############################################################################
 dnf5 makecache -y
-dnf5 remove -y gamescope || true
+dnf5 remove -y gamescope gamescope-libs || true
 dnf5 install -y \
   1password \
   1password-cli \
