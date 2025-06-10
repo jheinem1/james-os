@@ -47,8 +47,7 @@ dnf5 install -y \
   konsole \
   piper \
   yakuake \
-  corectrl \
-  https://github.com/Legcord/Legcord/releases/download/v1.1.5/Legcord-1.1.5-linux-x86_64.rpm
+  corectrl
 
 # Update plasma desktop and KDE components
 dnf5 update -y \
