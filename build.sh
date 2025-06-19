@@ -2,13 +2,13 @@
 set -euo pipefail
 
 ###############################################################################
-# 0. Directories that must exist during the RPM unpack phase
+# Directories that must exist during the RPM unpack phase
 ###############################################################################
 mkdir -p /etc/yum.repos.d
 mkdir -p /var/opt               # /opt → /var/opt symlink target on Silverblue/Bazzite
 
 ###############################################################################
-# 1. 1Password repo + GPG key
+# 1Password repo + GPG key
 ###############################################################################
 cat > /etc/yum.repos.d/1password.repo <<'EOF'
 [1password]
@@ -23,7 +23,7 @@ EOF
 rpm --import https://downloads.1password.com/linux/keys/1password.asc
 
 ###############################################################################
-# 2. Visual Studio Code repo + key
+# Visual Studio Code repo + key
 ###############################################################################
 cat > /etc/yum.repos.d/vscode.repo <<'EOF'
 [code]
@@ -37,7 +37,7 @@ EOF
 rpm --import https://packages.microsoft.com/keys/microsoft.asc
 
 ###############################################################################
-# 3. Install all desired packages in one shot
+# Install all desired packages in one shot
 ###############################################################################
 dnf5 makecache -y
 dnf5 install -y \
@@ -55,12 +55,12 @@ dnf5 update -y \
   plasma-workspace
 
 ###############################################################################
-# 4. Relocate 1Password into /usr (so it's captured in the OSTree commit)
+# Relocate 1Password into /usr (so it's captured in the OSTree commit)
 ###############################################################################
 mv /var/opt/1Password /usr/lib/1Password
 
 ###############################################################################
-# 5. Permissions, groups, hardening
+# Permissions, groups, hardening
 ###############################################################################
 # Choose high numeric GIDs that won't collide with regular user groups
 GID_ONEPASSWORD=1500
@@ -88,7 +88,7 @@ L /var/opt/1Password - - - - /usr/lib/1Password
 EOF
 
 ###############################################################################
-# 6. Optional cleanup – drop repo files & dnf caches to keep image lean
+# Cleanup – drop repo files & dnf caches to keep image lean
 ###############################################################################
 rm -f /etc/yum.repos.d/1password.repo /etc/yum.repos.d/vscode.repo
 dnf5 clean all
