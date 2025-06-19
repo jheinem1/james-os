@@ -2,7 +2,7 @@
 set -euo pipefail
 
 ###############################################################################
-# Directories that must exist during the RPM unpack phase
+# 0. Directories that must exist during the RPM unpack phase
 ###############################################################################
 mkdir -p /etc/yum.repos.d
 mkdir -p /var/opt               # /opt → /var/opt symlink target on Silverblue/Bazzite
@@ -23,7 +23,7 @@ EOF
 rpm --import https://downloads.1password.com/linux/keys/1password.asc
 
 ###############################################################################
-# Visual Studio Code repo + key
+# 2. Visual Studio Code repo + key
 ###############################################################################
 cat > /etc/yum.repos.d/vscode.repo <<'EOF'
 [code]
@@ -37,17 +37,9 @@ EOF
 rpm --import https://packages.microsoft.com/keys/microsoft.asc
 
 ###############################################################################
-# Gamescope Git repo from COPR
-###############################################################################
-# Install the copr plugin then enable the gamescope-git repo
-dnf5 install -y 'dnf-command(copr)'
-dnf5 copr enable -y vulongm/gamescope-git
-
-###############################################################################
-# Install all desired packages in one shot
+# 3. Install all desired packages in one shot
 ###############################################################################
 dnf5 makecache -y
-dnf5 remove -y gamescope gamescope-libs || true
 dnf5 install -y \
   1password \
   1password-cli \
@@ -55,8 +47,7 @@ dnf5 install -y \
   konsole \
   piper \
   yakuake \
-  corectrl \
-  gamescope
+  corectrl
 
 # Update plasma desktop and KDE components
 dnf5 update -y \
@@ -64,12 +55,12 @@ dnf5 update -y \
   plasma-workspace
 
 ###############################################################################
-# Relocate 1Password into /usr (so it's captured in the OSTree commit)
+# 4. Relocate 1Password into /usr (so it's captured in the OSTree commit)
 ###############################################################################
 mv /var/opt/1Password /usr/lib/1Password
 
 ###############################################################################
-# Permissions, groups, hardening
+# 5. Permissions, groups, hardening
 ###############################################################################
 # Choose high numeric GIDs that won't collide with regular user groups
 GID_ONEPASSWORD=1500
@@ -97,10 +88,8 @@ L /var/opt/1Password - - - - /usr/lib/1Password
 EOF
 
 ###############################################################################
-# Optional cleanup – drop repo files & dnf caches to keep image lean
+# 6. Optional cleanup – drop repo files & dnf caches to keep image lean
 ###############################################################################
-rm -f /etc/yum.repos.d/1password.repo \
-       /etc/yum.repos.d/vscode.repo \
-       /etc/yum.repos.d/_copr:copr.fedorainfracloud.org:vulongm:gamescope-git.repo
+rm -f /etc/yum.repos.d/1password.repo /etc/yum.repos.d/vscode.repo
 dnf5 clean all
 rm -rf /var/cache/dnf
