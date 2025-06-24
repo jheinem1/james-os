@@ -55,8 +55,9 @@ dnf5 install -y \
   piper \
   yakuake \
   corectrl \
-  discord \
   gamescope
+
+dnf install -y discord
 
 # Update plasma desktop and KDE components
 dnf5 update -y \
