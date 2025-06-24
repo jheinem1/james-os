@@ -37,6 +37,13 @@ EOF
 rpm --import https://packages.microsoft.com/keys/microsoft.asc
 
 ###############################################################################
+# Gamescope Git repo from COPR
+###############################################################################
+# Install the copr plugin then enable the gamescope-git repo
+dnf5 install -y 'dnf-command(copr)'
+dnf5 copr enable -y vulongm/gamescope-git
+
+###############################################################################
 # Install all desired packages in one shot
 ###############################################################################
 dnf5 makecache -y
@@ -47,7 +54,10 @@ dnf5 install -y \
   konsole \
   piper \
   yakuake \
-  corectrl
+  corectrl \
+  gamescope
+
+dnf install -y discord
 
 # Update plasma desktop and KDE components
 dnf5 update -y \
