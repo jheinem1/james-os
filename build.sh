@@ -8,7 +8,7 @@ mkdir -p /etc/yum.repos.d
 mkdir -p /var/opt               # /opt → /var/opt symlink target on Silverblue/Bazzite
 
 ###############################################################################
-# 1. 1Password repo + GPG key
+# 1Password repo + GPG key
 ###############################################################################
 cat > /etc/yum.repos.d/1password.repo <<'EOF'
 [1password]
@@ -37,17 +37,9 @@ EOF
 rpm --import https://packages.microsoft.com/keys/microsoft.asc
 
 ###############################################################################
-# Gamescope Git repo from COPR
-###############################################################################
-# Install the copr plugin then enable the gamescope-git repo
-dnf5 install -y 'dnf-command(copr)'
-dnf5 copr enable -y vulongm/gamescope-git
-
-###############################################################################
 # Install all desired packages in one shot
 ###############################################################################
 dnf5 makecache -y
-dnf5 remove -y gamescope gamescope-libs || true
 dnf5 install -y \
   1password \
   1password-cli \
@@ -55,8 +47,7 @@ dnf5 install -y \
   konsole \
   piper \
   yakuake \
-  corectrl \
-  gamescope
+  corectrl
 
 # Update plasma desktop and KDE components
 dnf5 update -y \
@@ -97,10 +88,8 @@ L /var/opt/1Password - - - - /usr/lib/1Password
 EOF
 
 ###############################################################################
-# Optional cleanup – drop repo files & dnf caches to keep image lean
+# Cleanup – drop repo files & dnf caches to keep image lean
 ###############################################################################
-rm -f /etc/yum.repos.d/1password.repo \
-       /etc/yum.repos.d/vscode.repo \
-       /etc/yum.repos.d/_copr:copr.fedorainfracloud.org:vulongm:gamescope-git.repo
+rm -f /etc/yum.repos.d/1password.repo /etc/yum.repos.d/vscode.repo
 dnf5 clean all
 rm -rf /var/cache/dnf
