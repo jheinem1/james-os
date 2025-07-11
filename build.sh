@@ -47,12 +47,18 @@ dnf5 install -y \
   konsole \
   piper \
   yakuake \
-  corectrl
+  corectrl \
+  kde-partitionmanager
 
 # Update plasma desktop and KDE components
 dnf5 update -y \
   plasma-desktop \
   plasma-workspace
+
+###############################################################################
+# Remove packages that conflict with KDE
+###############################################################################
+dnf5 remove -y gnome-disk-utility
 
 ###############################################################################
 # Relocate 1Password into /usr (so it's captured in the OSTree commit)
