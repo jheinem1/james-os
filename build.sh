@@ -47,7 +47,7 @@ dnf5 install -y \
   konsole \
   piper \
   yakuake \
-  corectrl
+  corectrl \
   plasma-discover \
   plasma-discover-kns \
   plasma-discover-flatpak \
