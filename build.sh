@@ -52,7 +52,8 @@ dnf5 install -y \
   plasma-discover-kns \
   plasma-discover-flatpak \
   plasma-discover-rpm-ostree \
-  plasma-discover-notifier
+  plasma-discover-notifier \
+  kde-partitionmanager
 
 # Update plasma desktop and KDE components
 dnf5 update -y \
@@ -63,6 +64,7 @@ dnf5 update -y \
 # Remove unwanted packages
 ###############################################################################
 dnf5 remove -y bazaar-0.0.git.921.5ed56f02.f0ac13e-3.fc42.x86_64
+dnf5 remove -y gnome-disk-utility
 
 ###############################################################################
 # Relocate 1Password into /usr (so it's captured in the OSTree commit)
