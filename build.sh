@@ -51,7 +51,6 @@ dnf5 install -y \
   plasma-discover \
   plasma-discover-kns \
   plasma-discover-flatpak \
-  plasma-discover-rpm-ostree \
   plasma-discover-notifier \
   kde-partitionmanager
 
