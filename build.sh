@@ -64,6 +64,7 @@ dnf5 update -y \
 ###############################################################################
 dnf5 remove -y gnome-disk-utility
 dnf5 remove -y bazaar krunner-bazaar
+dnf5 remove -y lutris
 
 ###############################################################################
 # Relocate 1Password into /usr (so it's captured in the OSTree commit)
