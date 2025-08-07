@@ -44,6 +44,7 @@ dnf5 install -y \
   1password \
   1password-cli \
   code \
+  discord \
   konsole \
   piper \
   yakuake \
