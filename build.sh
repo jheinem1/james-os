@@ -54,11 +54,6 @@ dnf5 install -y \
   plasma-discover-notifier \
   kde-partitionmanager
 
-# Update plasma desktop and KDE components
-dnf5 update -y \
-  plasma-desktop \
-  plasma-workspace
-
 ###############################################################################
 # Remove unwanted packages
 ###############################################################################
