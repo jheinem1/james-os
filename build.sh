@@ -37,47 +37,11 @@ EOF
 rpm --import https://packages.microsoft.com/keys/microsoft.asc
 
 ###############################################################################
-# Discord repo (negativo17 multimedia) + GPG key
+# RPM Fusion (free + nonfree) – provides Discord
 ###############################################################################
-cat > /etc/yum.repos.d/negativo17-fedora-multimedia.repo <<'EOF'
-[fedora-multimedia]
-name=negativo17 - Multimedia
-baseurl=https://negativo17.org/repos/multimedia/fedora-$releasever/$basearch/
-enabled=1
-skip_if_unavailable=1
-gpgkey=https://negativo17.org/repos/RPM-GPG-KEY-slaanesh
-gpgcheck=1
-enabled_metadata=1
-metadata_expire=6h
-type=rpm-md
-repo_gpgcheck=0
-
-[fedora-multimedia-source]
-name=negativo17 - Multimedia - Source
-baseurl=https://negativo17.org/repos/multimedia/fedora-$releasever/SRPMS
-enabled=0
-skip_if_unavailable=1
-gpgkey=https://negativo17.org/repos/RPM-GPG-KEY-slaanesh
-gpgcheck=1
-enabled_metadata=1
-metadata_expire=6h
-type=rpm-md
-repo_gpgcheck=0
-
-[fedora-multimedia-debug]
-name=negativo17 - Multimedia - Debug
-baseurl=https://negativo17.org/repos/multimedia/fedora-$releasever/$basearch.debug/
-enabled=0
-skip_if_unavailable=1
-gpgkey=https://negativo17.org/repos/RPM-GPG-KEY-slaanesh
-gpgcheck=1
-enabled_metadata=1
-metadata_expire=6h
-type=rpm-md
-repo_gpgcheck=0
-EOF
-
-rpm --import https://negativo17.org/repos/RPM-GPG-KEY-slaanesh
+dnf5 install -y \
+  https://mirrors.rpmfusion.org/free/fedora/rpmfusion-free-release-$(rpm -E %fedora).noarch.rpm \
+  https://mirrors.rpmfusion.org/nonfree/fedora/rpmfusion-nonfree-release-$(rpm -E %fedora).noarch.rpm
 
 ###############################################################################
 # Gamescope Git repo from COPR
