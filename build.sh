@@ -37,6 +37,56 @@ EOF
 rpm --import https://packages.microsoft.com/keys/microsoft.asc
 
 ###############################################################################
+# Discord repo (negativo17 multimedia) + GPG key
+###############################################################################
+cat > /etc/yum.repos.d/negativo17-fedora-multimedia.repo <<'EOF'
+[fedora-multimedia]
+name=negativo17 - Multimedia
+baseurl=https://negativo17.org/repos/multimedia/fedora-$releasever/$basearch/
+enabled=1
+skip_if_unavailable=1
+gpgkey=https://negativo17.org/repos/RPM-GPG-KEY-slaanesh
+gpgcheck=1
+enabled_metadata=1
+metadata_expire=6h
+type=rpm-md
+repo_gpgcheck=0
+
+[fedora-multimedia-source]
+name=negativo17 - Multimedia - Source
+baseurl=https://negativo17.org/repos/multimedia/fedora-$releasever/SRPMS
+enabled=0
+skip_if_unavailable=1
+gpgkey=https://negativo17.org/repos/RPM-GPG-KEY-slaanesh
+gpgcheck=1
+enabled_metadata=1
+metadata_expire=6h
+type=rpm-md
+repo_gpgcheck=0
+
+[fedora-multimedia-debug]
+name=negativo17 - Multimedia - Debug
+baseurl=https://negativo17.org/repos/multimedia/fedora-$releasever/$basearch.debug/
+enabled=0
+skip_if_unavailable=1
+gpgkey=https://negativo17.org/repos/RPM-GPG-KEY-slaanesh
+gpgcheck=1
+enabled_metadata=1
+metadata_expire=6h
+type=rpm-md
+repo_gpgcheck=0
+EOF
+
+rpm --import https://negativo17.org/repos/RPM-GPG-KEY-slaanesh
+
+###############################################################################
+# Gamescope Git repo from COPR
+###############################################################################
+# Install the copr plugin then enable the gamescope-git repo
+dnf5 install -y 'dnf-command(copr)'
+dnf5 copr enable -y vulongm/gamescope-git
+
+###############################################################################
 # Install all desired packages in one shot
 ###############################################################################
 dnf5 makecache -y
@@ -53,7 +103,8 @@ dnf5 install -y \
   plasma-discover-kns \
   plasma-discover-flatpak \
   plasma-discover-notifier \
-  kde-partitionmanager
+  kde-partitionmanager \
+  discord
 
 # Update plasma desktop and KDE components
 dnf5 update -y \
@@ -104,5 +155,6 @@ EOF
 # Cleanup – drop repo files & dnf caches to keep image lean
 ###############################################################################
 rm -f /etc/yum.repos.d/1password.repo /etc/yum.repos.d/vscode.repo
+rm -f /etc/yum.repos.d/negativo17-fedora-multimedia.repo
 dnf5 clean all
 rm -rf /var/cache/dnf
