@@ -40,8 +40,8 @@ rpm --import https://packages.microsoft.com/keys/microsoft.asc
 # RPM Fusion (free + nonfree) – provides Discord
 ###############################################################################
 dnf5 install -y \
-  https://mirrors.rpmfusion.org/free/fedora/rpmfusion-free-release-$(rpm -E %fedora).noarch.rpm \
-  https://mirrors.rpmfusion.org/nonfree/fedora/rpmfusion-nonfree-release-$(rpm -E %fedora).noarch.rpm
+  "https://mirrors.rpmfusion.org/free/fedora/rpmfusion-free-release-$(rpm -E %fedora).noarch.rpm" \
+  "https://mirrors.rpmfusion.org/nonfree/fedora/rpmfusion-nonfree-release-$(rpm -E %fedora).noarch.rpm"
 
 ###############################################################################
 # Gamescope Git repo from COPR
