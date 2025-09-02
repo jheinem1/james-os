@@ -37,6 +37,20 @@ EOF
 rpm --import https://packages.microsoft.com/keys/microsoft.asc
 
 ###############################################################################
+# RPM Fusion (free + nonfree) – provides Discord
+###############################################################################
+dnf5 install -y \
+  "https://mirrors.rpmfusion.org/free/fedora/rpmfusion-free-release-$(rpm -E %fedora).noarch.rpm" \
+  "https://mirrors.rpmfusion.org/nonfree/fedora/rpmfusion-nonfree-release-$(rpm -E %fedora).noarch.rpm"
+
+###############################################################################
+# Gamescope Git repo from COPR
+###############################################################################
+# Install the copr plugin then enable the gamescope-git repo
+dnf5 install -y 'dnf-command(copr)'
+dnf5 copr enable -y vulongm/gamescope-git
+
+###############################################################################
 # Install all desired packages in one shot
 ###############################################################################
 dnf5 makecache -y
@@ -44,6 +58,7 @@ dnf5 install -y \
   1password \
   1password-cli \
   code \
+  discord \
   konsole \
   piper \
   yakuake \
