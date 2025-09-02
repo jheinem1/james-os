@@ -67,9 +67,7 @@ dnf5 install -y \
   plasma-discover-kns \
   plasma-discover-flatpak \
   plasma-discover-notifier \
-  kde-partitionmanager \
-  discord
-
+  kde-partitionmanager
 # Update plasma desktop and KDE components
 dnf5 update -y \
   plasma-desktop \
@@ -119,6 +117,5 @@ EOF
 # Cleanup – drop repo files & dnf caches to keep image lean
 ###############################################################################
 rm -f /etc/yum.repos.d/1password.repo /etc/yum.repos.d/vscode.repo
-rm -f /etc/yum.repos.d/negativo17-fedora-multimedia.repo
 dnf5 clean all
 rm -rf /var/cache/dnf
