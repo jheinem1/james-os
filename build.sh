@@ -37,6 +37,13 @@ EOF
 rpm --import https://packages.microsoft.com/keys/microsoft.asc
 
 ###############################################################################
+# Discord repo (RPM Fusion nonfree)
+###############################################################################
+
+# Get candidate URL for discord RPM from repo metadata
+discord_rpmfusion_url=$(dnf5 repoquery --enablerepo='rpmfusion-nonfree' --location discord 2>/dev/null | head -n1)
+
+###############################################################################
 # Install all desired packages in one shot
 ###############################################################################
 dnf5 makecache -y
@@ -52,7 +59,9 @@ dnf5 install -y \
   plasma-discover-kns \
   plasma-discover-flatpak \
   plasma-discover-notifier \
-  kde-partitionmanager
+  kde-partitionmanager \
+  "$discord_rpmfusion_url"
+
 
 ###############################################################################
 # Remove unwanted packages
