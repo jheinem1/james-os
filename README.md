@@ -11,7 +11,6 @@ A [Fedora Atomic](https://fedoraproject.org/atomic-desktops) image built with [U
 - Adds back Konsole as a terminal option and Yakuake to complement it (ptyxis remains the default for compatibility with some Bazzite features).
 - Preinstalls Piper for configuring mice.
 - Preinstalls CoreCtrl for power management.
-- Preinstalls the Discord RPM.
 
 ## How to use
 
