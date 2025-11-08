@@ -54,7 +54,10 @@ dnf5 install -y \
   plasma-discover-kns \
   plasma-discover-flatpak \
   plasma-discover-notifier \
-  kde-partitionmanager
+  kde-partitionmanager \
+  plasma-oxygen \
+  plasma-oxygen-qt6 \
+  oxygen-icon-theme
 
 
 ###############################################################################
