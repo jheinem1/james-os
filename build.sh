@@ -60,6 +60,9 @@ dnf5 install -y \
   plasma-discover-flatpak \
   plasma-discover-notifier \
   kde-partitionmanager \
+  plasma-oxygen \
+  plasma-oxygen-qt6 \
+  oxygen-icon-theme \
   "$discord_rpmfusion_url"
 
 
