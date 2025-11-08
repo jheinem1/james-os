@@ -36,12 +36,7 @@ EOF
 
 rpm --import https://packages.microsoft.com/keys/microsoft.asc
 
-###############################################################################
-# Discord repo (RPM Fusion nonfree)
-###############################################################################
 
-# Get candidate URL for discord RPM from repo metadata
-discord_rpmfusion_url=$(dnf5 repoquery --enablerepo='rpmfusion-nonfree' --location discord 2>/dev/null | head -n1)
 
 ###############################################################################
 # Install all desired packages in one shot
@@ -62,8 +57,7 @@ dnf5 install -y \
   kde-partitionmanager \
   plasma-oxygen \
   plasma-oxygen-qt6 \
-  oxygen-icon-theme \
-  "$discord_rpmfusion_url"
+  oxygen-icon-theme
 
 
 ###############################################################################
