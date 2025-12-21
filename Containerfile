@@ -1,4 +1,4 @@
-FROM ghcr.io/ublue-os/bazzite:stable
+FROM ghcr.io/ublue-os/bazzite-dx:stable
 
 COPY build.sh /tmp/build.sh
 ENV GNUPGHOME=/var/tmp/gnupg

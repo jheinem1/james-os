@@ -22,21 +22,6 @@ EOF
 
 rpm --import https://downloads.1password.com/linux/keys/1password.asc
 
-###############################################################################
-# Visual Studio Code repo + key
-###############################################################################
-cat > /etc/yum.repos.d/vscode.repo <<'EOF'
-[code]
-name = Visual Studio Code
-baseurl = https://packages.microsoft.com/yumrepos/vscode
-enabled = 1
-gpgcheck = 1
-gpgkey = https://packages.microsoft.com/keys/microsoft.asc
-EOF
-
-rpm --import https://packages.microsoft.com/keys/microsoft.asc
-
-
 
 ###############################################################################
 # Install all desired packages in one shot
@@ -45,7 +30,6 @@ dnf5 makecache -y
 dnf5 install -y \
   1password \
   1password-cli \
-  code \
   konsole \
   piper \
   yakuake \
@@ -103,6 +87,6 @@ EOF
 ###############################################################################
 # Cleanup – drop repo files & dnf caches to keep image lean
 ###############################################################################
-rm -f /etc/yum.repos.d/1password.repo /etc/yum.repos.d/vscode.repo
+rm -f /etc/yum.repos.d/1password.repo
 dnf5 clean all
 rm -rf /var/cache/dnf
