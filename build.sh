@@ -34,10 +34,6 @@ dnf5 install -y \
   piper \
   yakuake \
   corectrl \
-  plasma-discover \
-  plasma-discover-kns \
-  plasma-discover-flatpak \
-  plasma-discover-notifier \
   kde-partitionmanager \
   plasma-oxygen \
   plasma-oxygen-qt6 \
@@ -48,7 +44,6 @@ dnf5 install -y \
 # Remove unwanted packages
 ###############################################################################
 dnf5 remove -y gnome-disk-utility
-dnf5 remove -y bazaar krunner-bazaar
 dnf5 remove -y lutris
 
 ###############################################################################
