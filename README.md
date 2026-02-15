@@ -10,6 +10,7 @@ A [Fedora Atomic](https://fedoraproject.org/atomic-desktops) image built with [U
 - Adds back Konsole as a terminal option and Yakuake to complement it (ptyxis remains the default for compatibility with some Bazzite features).
 - Preinstalls Piper for configuring mice.
 - Preinstalls CoreCtrl for power management.
+- Adds an Open With action in Dolphin to encode videos for Discord using CPU H.264 with a target-size popup and progress bar.
 
 ## How to use
 
