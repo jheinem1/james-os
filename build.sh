@@ -53,6 +53,17 @@ dnf5 install -y \
   oxygen-icon-theme \
   code
 
+###############################################################################
+# Install Discord at image level (official tarball)
+###############################################################################
+curl -L 'https://discord.com/api/download?platform=linux&format=tar.gz' \
+  -o /tmp/discord.tar.gz
+mkdir -p /usr/share/discord
+tar -xzf /tmp/discord.tar.gz --strip-components=1 -C /usr/share/discord
+ln -sf /usr/share/discord/Discord /usr/bin/discord
+install -Dm0644 /usr/share/discord/discord.desktop /usr/share/applications/discord.desktop
+chmod 4755 /usr/share/discord/chrome-sandbox
+
 
 ###############################################################################
 # Remove unwanted packages
