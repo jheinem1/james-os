@@ -83,8 +83,17 @@ mv /var/opt/1Password /usr/lib/1Password
 GID_ONEPASSWORD=1500
 GID_ONEPASSWORDCLI=1600
 
-# Chromium sandbox needs set-uid root
-chmod 4755 /usr/lib/1Password/chrome-sandbox
+# Chromium sandbox binaries must be root-owned before setuid is enabled.
+for sandbox_bin in \
+  /usr/lib/1Password/chrome-sandbox \
+  /usr/lib64/discord/chrome-sandbox \
+  /usr/lib/discord/chrome-sandbox
+do
+  if [[ -f "${sandbox_bin}" ]]; then
+    chown root:root "${sandbox_bin}"
+    chmod 4755 "${sandbox_bin}"
+  fi
+done
 
 # Helper & CLI binaries need dedicated groups + setgid
 chgrp ${GID_ONEPASSWORD} /usr/lib/1Password/1Password-BrowserSupport
