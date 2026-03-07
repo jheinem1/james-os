@@ -53,6 +53,11 @@ dnf5 install -y \
   oxygen-icon-theme \
   code
 
+# Discord's RPM desktop file uses Icon=discord but does not install that icon
+# into the theme search path. Provide a stable hicolor entry when Discord exists.
+mkdir -p /usr/share/icons/hicolor/256x256/apps
+ln -sfn /usr/share/discord/discord.png /usr/share/icons/hicolor/256x256/apps/discord.png
+
 
 ###############################################################################
 # Remove unwanted packages
