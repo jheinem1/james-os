@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=Encode for Discord (H.264, target size...)
+Comment=CPU H.264 two-pass encoder with target size popup
+Icon=video-x-generic
+Exec=/usr/bin/python3 /usr/local/bin/dolphin_discord_encode.py %F
+Terminal=false
+NoDisplay=true
+MimeType=video/mp4;video/x-matroska;video/x-msvideo;video/mpeg;video/quicktime;video/webm;video/ogg;video/*;
+Categories=AudioVideo;Video;
