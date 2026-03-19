@@ -6,7 +6,6 @@ A [Fedora Atomic](https://fedoraproject.org/atomic-desktops) image built with [U
 - Replaces GNOME Disk Utility with KDE Partition Manager.
 - Removes Lutris.
 - Preinstalls 1Password and the 1Password CLI.
-- Preinstalls the latest version of Visual Studio Code.
 - Adds back Konsole as a terminal option and Yakuake to complement it (ptyxis remains the default for compatibility with some Bazzite features).
 - Preinstalls Piper for configuring mice.
 - Preinstalls CoreCtrl for power management.
