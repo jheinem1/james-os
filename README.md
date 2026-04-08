@@ -10,6 +10,7 @@ A [Fedora Atomic](https://fedoraproject.org/atomic-desktops) image built with [U
 - Preinstalls Piper for configuring mice.
 - Preinstalls CoreCtrl for power management.
 - Adds an Open With action in Dolphin to encode videos for Discord using CPU H.264 with a target-size popup and progress bar.
+- Installs Discord from the official tarball at image build time, patches it with a pinned Vencord build, and includes a KDE idle/lock watcher that can drive Discord presence over a local socket.
 
 ## How to use
 
