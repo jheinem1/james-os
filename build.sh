@@ -68,7 +68,13 @@ git -C /tmp/Vencord checkout "${VENCORD_REF}"
 mkdir -p /tmp/Vencord/src/plugins/kdeIdleSync.discordDesktop
 cp /tmp/vencord-overlay/src/plugins/kdeIdleSync.discordDesktop/index.ts /tmp/Vencord/src/plugins/kdeIdleSync.discordDesktop/index.ts
 cp /tmp/vencord-overlay/src/plugins/kdeIdleSync.discordDesktop/native.ts /tmp/Vencord/src/plugins/kdeIdleSync.discordDesktop/native.ts
-npm install -g pnpm
+export HOME=/tmp
+export XDG_CONFIG_HOME=/tmp/.config
+export XDG_DATA_HOME=/tmp/.local/share
+export npm_config_cache=/tmp/npm-cache
+export npm_config_prefix=/tmp/npm-global
+npm install -g pnpm@10.4.1
+export PATH="/tmp/npm-global/bin:${PATH}"
 (
   cd /tmp/Vencord
   pnpm install --frozen-lockfile
