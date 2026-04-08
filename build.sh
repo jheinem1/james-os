@@ -32,7 +32,6 @@ dnf5 makecache -y
 dnf5 install -y \
   1password \
   1password-cli \
-  git \
   konsole \
   nodejs \
   npm \
@@ -93,7 +92,7 @@ ln -sfn /usr/lib/systemd/user/kde-discord-idle-sync.service \
 ###############################################################################
 dnf5 remove -y gnome-disk-utility
 dnf5 remove -y lutris
-dnf5 remove -y git nodejs npm
+dnf5 remove -y nodejs npm
 
 ###############################################################################
 # Relocate 1Password into /usr (so it's captured in the OSTree commit)
