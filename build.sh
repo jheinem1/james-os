@@ -78,13 +78,13 @@ export PATH="/tmp/npm-global/bin:${PATH}"
   cd /tmp/Vencord
   pnpm install --frozen-lockfile
   pnpm build
-  node scripts/runInstaller.mjs -- --install -location /usr/share/discord
+  pnpm inject -- --location /usr/share/discord
 )
 
 # Enable the KDE idle sync watcher for all users by default.
-mkdir -p /usr/lib/systemd/user/default.target.wants
+mkdir -p /usr/lib/systemd/user/graphical-session.target.wants
 ln -sfn /usr/lib/systemd/user/kde-discord-idle-sync.service \
-  /usr/lib/systemd/user/default.target.wants/kde-discord-idle-sync.service
+  /usr/lib/systemd/user/graphical-session.target.wants/kde-discord-idle-sync.service
 
 
 ###############################################################################
