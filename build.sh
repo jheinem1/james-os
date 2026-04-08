@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+VENCORD_REF="cba0eb9897419432e68277b0b60c301a6f8323cf"
+VENCORD_TAG="v1.14.6"
+
 ###############################################################################
 # Directories that must exist during the RPM unpack phase
 ###############################################################################
@@ -29,7 +32,10 @@ dnf5 makecache -y
 dnf5 install -y \
   1password \
   1password-cli \
+  git \
   konsole \
+  nodejs \
+  npm \
   piper \
   yakuake \
   corectrl \
@@ -54,12 +60,34 @@ chmod 4755 /usr/share/discord/chrome-sandbox
 mkdir -p /usr/share/icons/hicolor/256x256/apps
 ln -sfn /usr/share/discord/discord.png /usr/share/icons/hicolor/256x256/apps/discord.png
 
+###############################################################################
+# Install Vencord into the image-level Discord tree with the KDE idle plugin
+###############################################################################
+git clone --depth=1 --branch "${VENCORD_TAG}" https://github.com/Vendicated/Vencord.git /tmp/Vencord
+git -C /tmp/Vencord checkout "${VENCORD_REF}"
+mkdir -p /tmp/Vencord/src/plugins/kdeIdleSync.discordDesktop
+cp /tmp/vencord-overlay/src/plugins/kdeIdleSync.discordDesktop/index.ts /tmp/Vencord/src/plugins/kdeIdleSync.discordDesktop/index.ts
+cp /tmp/vencord-overlay/src/plugins/kdeIdleSync.discordDesktop/native.ts /tmp/Vencord/src/plugins/kdeIdleSync.discordDesktop/native.ts
+npm install -g pnpm
+(
+  cd /tmp/Vencord
+  pnpm install --frozen-lockfile
+  pnpm build
+  node scripts/runInstaller.mjs -- --install -location /usr/share/discord
+)
+
+# Enable the KDE idle sync watcher for all users by default.
+mkdir -p /usr/lib/systemd/user/default.target.wants
+ln -sfn /usr/lib/systemd/user/kde-discord-idle-sync.service \
+  /usr/lib/systemd/user/default.target.wants/kde-discord-idle-sync.service
+
 
 ###############################################################################
 # Remove unwanted packages
 ###############################################################################
 dnf5 remove -y gnome-disk-utility
 dnf5 remove -y lutris
+dnf5 remove -y git nodejs npm
 
 ###############################################################################
 # Relocate 1Password into /usr (so it's captured in the OSTree commit)

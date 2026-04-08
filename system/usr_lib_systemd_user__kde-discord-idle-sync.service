@@ -1,0 +1,15 @@
+[Unit]
+Description=Sync KDE idle and lock state to Vencord
+After=graphical-session.target
+PartOf=graphical-session.target
+
+[Service]
+Type=simple
+EnvironmentFile=-/etc/vencord-kde-idle-sync.env
+EnvironmentFile=-%h/.config/vencord-kde-idle-sync.env
+ExecStart=/usr/local/bin/kde-discord-idle-sync.py
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=default.target
