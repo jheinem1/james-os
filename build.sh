@@ -35,6 +35,7 @@ dnf5 install -y \
   konsole \
   nodejs \
   npm \
+  patch \
   piper \
   yakuake \
   corectrl \
