@@ -86,6 +86,8 @@ export PATH="/tmp/npm-global/bin:${PATH}"
 mkdir -p /usr/lib/systemd/user/graphical-session.target.wants
 ln -sfn /usr/lib/systemd/user/kde-discord-idle-sync.service \
   /usr/lib/systemd/user/graphical-session.target.wants/kde-discord-idle-sync.service
+ln -sfn /usr/lib/systemd/user/kvm-display-recover.service \
+  /usr/lib/systemd/user/graphical-session.target.wants/kvm-display-recover.service
 
 
 ###############################################################################

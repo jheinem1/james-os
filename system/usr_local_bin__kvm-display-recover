@@ -1,0 +1,151 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+target_output="${KVM_DISPLAY_TARGET_OUTPUT:-DP-3}"
+target_output_id="${KVM_DISPLAY_TARGET_OUTPUT_ID:-2}"
+other_output_id="${KVM_DISPLAY_OTHER_OUTPUT_ID:-1}"
+expected_outputs_csv="${KVM_DISPLAY_EXPECTED_OUTPUTS:-DP-2,DP-3}"
+mode="${KVM_DISPLAY_MODE:-3840x2160@160}"
+position="${KVM_DISPLAY_POSITION:-1920,0}"
+scale="${KVM_DISPLAY_SCALE:-2}"
+drm_card="${KVM_DISPLAY_DRM_CARD:-card1}"
+poll_interval="${KVM_DISPLAY_POLL_INTERVAL_SECONDS:-0.5}"
+settle_delay="${KVM_DISPLAY_SETTLE_DELAY_SECONDS:-0.8}"
+settle_attempts="${KVM_DISPLAY_SETTLE_ATTEMPTS:-12}"
+
+IFS=',' read -r -a expected_outputs <<< "$expected_outputs_csv"
+expected_count="${#expected_outputs[@]}"
+
+log() {
+  printf '[kvm-display-recover] %s\n' "$*" >&2
+}
+
+get_active_output() {
+  qdbus-qt6 org.kde.KWin /KWin activeOutputName 2>/dev/null || true
+}
+
+connected_expected_count() {
+  local count=0
+  local output
+  local status_path
+
+  for output in "${expected_outputs[@]}"; do
+    status_path="/sys/class/drm/${drm_card}-${output}/status"
+    if [[ -r "$status_path" ]] && [[ "$(cat "$status_path")" == "connected" ]]; then
+      count=$((count + 1))
+    fi
+  done
+
+  printf '%s\n' "$count"
+}
+
+focus_target_output() {
+  local active
+  local shortcut
+  local attempt
+
+  case "$target_output" in
+    DP-3)
+      shortcut="Switch to Screen to the Right"
+      ;;
+    DP-2)
+      shortcut="Switch to Screen to the Left"
+      ;;
+    *)
+      log "unsupported target output for focus: $target_output"
+      return 1
+      ;;
+  esac
+
+  for attempt in 1 2 3 4; do
+    active="$(get_active_output)"
+    if [[ "$active" == "$target_output" ]]; then
+      return 0
+    fi
+
+    qdbus-qt6 org.kde.kglobalaccel /component/kwin \
+      org.kde.kglobalaccel.Component.invokeShortcut "$shortcut" >/dev/null
+    sleep 0.3
+  done
+
+  active="$(get_active_output)"
+  [[ "$active" == "$target_output" ]]
+}
+
+recover_target_output() {
+  local status_path="/sys/class/drm/${drm_card}-${target_output}/status"
+  if [[ -r "$status_path" ]] && [[ "$(cat "$status_path")" != "connected" ]]; then
+    log "target output $target_output is not connected"
+    return 1
+  fi
+
+  kscreen-doctor "output.${target_output}.disable" >/dev/null || true
+  sleep "$settle_delay"
+  kscreen-doctor \
+    "output.${target_output}.enable" \
+    "output.${target_output}.mode.${mode}" \
+    "output.${target_output}.position.${position}" \
+    "output.${target_output}.scale.${scale}" \
+    "output.${other_output_id}.priority.2" \
+    "output.${target_output_id}.priority.1" \
+    "output.${target_output}.hdr.enable" \
+    "output.${target_output}.wcg.enable" >/dev/null
+}
+
+handle_reconnect() {
+  local settled=0
+  local attempt
+  local active
+
+  for attempt in $(seq 1 "$settle_attempts"); do
+    sleep "$settle_delay"
+    if (( "$(connected_expected_count)" == expected_count )); then
+      settled=1
+      break
+    fi
+  done
+
+  if (( settled == 0 )); then
+    log "outputs did not settle with all expected displays connected after $settle_attempts attempts"
+    return
+  fi
+
+  active="$(get_active_output)"
+  log "reconnect detected with active output ${active:-unknown}; recovering $target_output"
+
+  focus_target_output >/dev/null || true
+
+  if recover_target_output; then
+    log "recovered $target_output"
+  else
+    log "failed to recover $target_output"
+    return
+  fi
+
+  if focus_target_output; then
+    log "focused $target_output after recovery"
+  else
+    log "failed to focus $target_output after recovery"
+  fi
+}
+
+main() {
+  local last_connected_count
+  local current_connected_count
+
+  last_connected_count="$(connected_expected_count)"
+  log "started; expected outputs: ${expected_outputs[*]}, target: $target_output, connected: $last_connected_count/$expected_count"
+
+  while true; do
+    sleep "$poll_interval"
+    current_connected_count="$(connected_expected_count)"
+
+    if (( last_connected_count < expected_count && current_connected_count == expected_count )); then
+      handle_reconnect
+    fi
+
+    last_connected_count="$current_connected_count"
+  done
+}
+
+main "$@"

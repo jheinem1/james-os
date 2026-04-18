@@ -6,10 +6,13 @@ ENV GNUPGHOME=/var/tmp/gnupg
 
 # Copy in baked config files
 COPY --chmod=0644 system/etc__hostname /etc/hostname
+COPY --chmod=0644 system/etc__kvm-display-recover.env /etc/kvm-display-recover.env
 COPY --chmod=0644 system/etc__vencord-kde-idle-sync.env /etc/vencord-kde-idle-sync.env
 COPY --chmod=0755 system/usr_local_bin__discord_encoder.py /usr/local/bin/discord_encoder.py
 COPY --chmod=0755 system/usr_local_bin__dolphin_discord_encode.py /usr/local/bin/dolphin_discord_encode.py
+COPY --chmod=0755 system/usr_local_bin__kvm-display-recover /usr/local/bin/kvm-display-recover
 COPY --chmod=0755 system/usr_local_bin__kde-discord-idle-sync.py /usr/local/bin/kde-discord-idle-sync.py
+COPY --chmod=0644 system/usr_lib_systemd_user__kvm-display-recover.service /usr/lib/systemd/user/kvm-display-recover.service
 COPY --chmod=0644 system/usr_lib_systemd_user__kde-discord-idle-sync.service /usr/lib/systemd/user/kde-discord-idle-sync.service
 COPY --chmod=0644 system/usr_share_applications__discord-h264-encode.desktop /usr/share/applications/discord-h264-encode.desktop
 
