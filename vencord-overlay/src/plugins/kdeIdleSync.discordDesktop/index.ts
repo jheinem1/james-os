@@ -14,8 +14,6 @@ const StatusSettings = getUserSettingLazy<string>("status", "status")!;
 
 type ManagedStatus = "online" | "idle" | "dnd" | "invisible";
 
-let savedStatus: string | null = null;
-
 const settings = definePluginSettings({
     inactiveStatus: {
         type: OptionType.SELECT,
@@ -32,7 +30,9 @@ const settings = definePluginSettings({
         description: "Restore your previous status when activity resumes",
         default: true
     }
-});
+}).withPrivateSettings<{
+    savedStatus?: ManagedStatus | null;
+}>();
 
 function getCurrentStatus() {
     return StatusSettings.getSetting();
@@ -74,8 +74,8 @@ export default definePlugin({
             return;
         }
 
-        if (savedStatus == null) {
-            savedStatus = current;
+        if (settings.store.savedStatus == null) {
+            settings.store.savedStatus = current as ManagedStatus;
         }
 
         setStatus(inactiveStatus);
@@ -83,17 +83,18 @@ export default definePlugin({
 
     applyActiveState() {
         if (!settings.store.restoreStatusOnActive) {
-            savedStatus = null;
+            settings.store.savedStatus = null;
             return;
         }
 
         const inactiveStatus = settings.store.inactiveStatus as ManagedStatus;
         const current = getCurrentStatus();
+        const savedStatus = settings.store.savedStatus as ManagedStatus | null | undefined;
 
         if (savedStatus != null && current === inactiveStatus) {
-            setStatus(savedStatus as ManagedStatus);
+            setStatus(savedStatus);
         }
 
-        savedStatus = null;
+        settings.store.savedStatus = null;
     }
 });
