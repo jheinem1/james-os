@@ -3,6 +3,7 @@
 import os
 import socket
 import subprocess
+import sys
 import time
 
 
@@ -10,8 +11,11 @@ SOCKET_PATH = os.environ.get(
     "VENCORD_KDE_IDLE_SOCKET",
     os.path.join(os.environ.get("XDG_RUNTIME_DIR", "/tmp"), "vencord-kde-idle-sync.sock"),
 )
-IDLE_THRESHOLD_SECONDS = int(os.environ.get("VENCORD_KDE_IDLE_THRESHOLD", "300"))
 POLL_SECONDS = float(os.environ.get("VENCORD_KDE_IDLE_POLL_SECONDS", "5"))
+
+
+def log(message: str) -> None:
+    print(f"kde-discord-idle-sync: {message}", file=sys.stderr, flush=True)
 
 
 def dbus_call(method: str) -> str:
@@ -38,11 +42,6 @@ def get_lock_state() -> bool:
     return dbus_call("GetActive").lower().endswith("true,)")
 
 
-def get_idle_seconds() -> int:
-    output = dbus_call("GetSessionIdleTime")
-    return int(output.removeprefix("(uint32 ").removesuffix(",)"))
-
-
 def notify_vencord(state: str) -> None:
     with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as client:
         client.settimeout(1)
@@ -55,12 +54,13 @@ def main() -> None:
 
     while True:
         try:
-            state = "inactive" if get_lock_state() or get_idle_seconds() >= IDLE_THRESHOLD_SECONDS else "active"
+            state = "inactive" if get_lock_state() else "active"
+
             if state != last_state:
                 notify_vencord(state)
                 last_state = state
-        except Exception:
-            pass
+        except Exception as error:
+            log(f"poll failed: {error}")
 
         time.sleep(POLL_SECONDS)
 
