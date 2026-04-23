@@ -7,6 +7,7 @@ PartOf=graphical-session.target
 Type=simple
 EnvironmentFile=-/etc/kvm-display-recover.env
 EnvironmentFile=-%h/.config/kvm-display-recover.env
+Environment=QT_QPA_PLATFORM=wayland
 ExecStart=/usr/local/bin/kvm-display-recover
 Restart=always
 RestartSec=1
