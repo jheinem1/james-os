@@ -72,6 +72,39 @@ if needle in text:
 PY
 }
 
+running_app_pid() {
+    local electron_path
+    local pid=""
+    local proc_exe=""
+    local actual=""
+
+    electron_path="$(realpath -m "$APP_DIR/electron")"
+
+    if [ -f "$STATE_DIR/app.pid" ]; then
+        pid="$(cat "$STATE_DIR/app.pid" 2>/dev/null || true)"
+        if [[ "$pid" =~ ^[0-9]+$ ]] && [ -e "/proc/$pid/exe" ]; then
+            actual="$(realpath -m "$(readlink -f "/proc/$pid/exe" 2>/dev/null || true)")"
+            if [ "$actual" = "$electron_path" ]; then
+                echo "$pid"
+                return 0
+            fi
+        fi
+    fi
+
+    for proc_exe in /proc/[0-9]*/exe; do
+        [ -e "$proc_exe" ] || continue
+        actual="$(realpath -m "$(readlink -f "$proc_exe" 2>/dev/null || true)")"
+        if [ "$actual" = "$electron_path" ]; then
+            pid="${proc_exe#/proc/}"
+            pid="${pid%/exe}"
+            echo "$pid"
+            return 0
+        fi
+    done
+
+    return 1
+}
+
 old_head="$(git -C "$REPO_DIR" rev-parse HEAD)"
 git -C "$REPO_DIR" pull --ff-only
 new_head="$(git -C "$REPO_DIR" rev-parse HEAD)"
@@ -82,6 +115,12 @@ fi
 
 write_install_env
 patch_installed_common
+
+if pid="$(running_app_pid)"; then
+    echo "Codex Desktop is running from $APP_DIR (pid $pid); skipping rebuild."
+    echo "Close Codex Desktop and rerun System Update to apply Codex Desktop updates."
+    exit 0
+fi
 
 if [ "$old_head" != "$new_head" ]; then
     exec "$HOME/.local/bin/codex-desktop-update" --force
