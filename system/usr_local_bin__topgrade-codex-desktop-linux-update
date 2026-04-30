@@ -27,6 +27,9 @@ STATE_DIR="${XDG_STATE_HOME:-${HOME}/.local/state}/codex-desktop-linux"
 INSTALL_ENV="${STATE_DIR}/install.env"
 DMG_FILE="${REPO_DIR}/Codex.dmg"
 
+# Avoid interactive npx package-install prompts during unattended Topgrade runs.
+export npm_config_yes=true
+
 write_install_env() {
     mkdir -p "$STATE_DIR"
     {

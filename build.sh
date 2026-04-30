@@ -32,6 +32,7 @@ dnf5 makecache -y
 dnf5 install -y \
   1password \
   1password-cli \
+  cargo \
   konsole \
   nodejs \
   npm \
