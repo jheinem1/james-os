@@ -1,0 +1,90 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo_candidates=(
+    "${CODEX_DESKTOP_LINUX_REPO:-}"
+    "${HOME}/codex-desktop-linux"
+    "${HOME}/Projects/codex-desktop-linux"
+    "${HOME}/workspace/codex-desktop-linux"
+)
+
+REPO_DIR=""
+for candidate in "${repo_candidates[@]}"; do
+    if [ -n "$candidate" ] && [ -d "$candidate/.git" ]; then
+        REPO_DIR="$candidate"
+        break
+    fi
+done
+
+if [ -z "$REPO_DIR" ]; then
+    echo "codex-desktop-linux checkout not found; set CODEX_DESKTOP_LINUX_REPO." >&2
+    exit 1
+fi
+
+OPT_ROOT="${HOME}/.local/opt/codex-desktop-linux"
+APP_DIR="${OPT_ROOT}/codex-app"
+STATE_DIR="${XDG_STATE_HOME:-${HOME}/.local/state}/codex-desktop-linux"
+INSTALL_ENV="${STATE_DIR}/install.env"
+DMG_FILE="${REPO_DIR}/Codex.dmg"
+
+# Avoid interactive npx package-install prompts during unattended Topgrade runs.
+export npm_config_yes=true
+
+write_install_env() {
+    mkdir -p "$STATE_DIR"
+    {
+        printf 'REPO_DIR=%q\n' "$REPO_DIR"
+        printf 'OPT_ROOT=%q\n' "$OPT_ROOT"
+        printf 'APP_DIR=%q\n' "$APP_DIR"
+        printf 'DMG_FILE=%q\n' "$DMG_FILE"
+    } > "$INSTALL_ENV"
+}
+
+patch_installed_common() {
+    local common="${OPT_ROOT}/lib/codex-desktop-linux/common.sh"
+    [ -f "$common" ] || return 0
+    grep -q 'Fallback when Pillow is unavailable' "$common" && return 0
+    python3 - "$common" <<'PY'
+from pathlib import Path
+import sys
+
+path = Path(sys.argv[1])
+text = path.read_text()
+needle = """extract_icon() {
+    ensure_layout
+"""
+replacement = """extract_icon() {
+    ensure_layout
+    # Fallback when Pillow is unavailable in the system Python.
+    if ! python3 - <<'PYCHECK' >/dev/null 2>&1
+import PIL
+PYCHECK
+    then
+        if [ -f "$REPO_DIR/assets/codex.png" ]; then
+            cp "$REPO_DIR/assets/codex.png" "$ICON_PATH"
+            return 0
+        fi
+    fi
+
+"""
+if needle in text:
+    path.write_text(text.replace(needle, replacement, 1))
+PY
+}
+
+old_head="$(git -C "$REPO_DIR" rev-parse HEAD)"
+git -C "$REPO_DIR" pull --ff-only
+new_head="$(git -C "$REPO_DIR" rev-parse HEAD)"
+
+if [ -x "$REPO_DIR/contrib/user-local-install/install-user-local.sh" ]; then
+    "$REPO_DIR/contrib/user-local-install/install-user-local.sh" --from-update
+fi
+
+write_install_env
+patch_installed_common
+
+if [ "$old_head" != "$new_head" ]; then
+    exec "$HOME/.local/bin/codex-desktop-update" --force
+fi
+
+exec "$HOME/.local/bin/codex-desktop-update"
