@@ -3,6 +3,21 @@ set -euo pipefail
 
 VENCORD_REF="cba0eb9897419432e68277b0b60c301a6f8323cf"
 VENCORD_TAG="v1.14.6"
+FORKED_DISCOVER_RPM="$(
+  find /tmp/forkeddiscover-rpm \
+    -type f \
+    -path '*/RPMS/*' \
+    -name 'plasma-discover-flatpak-only-[0-9]*.rpm' \
+    ! -name '*debuginfo*' \
+    ! -name '*debugsource*' \
+    | sort -V \
+    | tail -n 1
+)"
+
+if [[ -z "${FORKED_DISCOVER_RPM}" ]]; then
+  echo "Missing ForkedDiscover RPM artifact: expected plasma-discover-flatpak-only RPM under /tmp/forkeddiscover-rpm" >&2
+  exit 1
+fi
 
 ###############################################################################
 # Directories that must exist during the RPM unpack phase
@@ -73,6 +88,9 @@ dnf5 install -y \
   plasma-oxygen-qt6 \
   oxygen-icon-theme
 
+dnf5 remove -y plasma-discover-libs
+dnf5 install -y "${FORKED_DISCOVER_RPM}"
+
 ###############################################################################
 # Install Discord at image level (official tarball)
 ###############################################################################
@@ -136,6 +154,7 @@ ln -sfn /usr/lib/systemd/user/kvm-display-recover.service \
 ###############################################################################
 dnf5 remove -y gnome-disk-utility
 dnf5 remove -y lutris
+dnf5 remove -y bazaar krunner-bazaar
 dnf5 remove -y nodejs nodejs22 npm nodejs22-npm
 
 ###############################################################################

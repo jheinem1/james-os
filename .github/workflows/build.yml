@@ -53,6 +53,39 @@ jobs:
           # https://linux.die.net/man/1/date
           echo "date=$(date -u +%Y\-%m\-%d\T%H\:%M\:%S\Z)" >> $GITHUB_OUTPUT
 
+      - name: Download ForkedDiscover RPM
+        env:
+          GH_TOKEN: ${{ secrets.FORKEDDISCOVER_ARTIFACT_TOKEN || github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p forkeddiscover-rpm
+          run_id="$(
+            gh run list \
+              --repo jheinem1/ForkedDiscover \
+              --workflow 'Fedora RPM' \
+              --branch codex/flatpak-only-discover \
+              --status success \
+              --limit 1 \
+              --json databaseId \
+              --jq '.[0].databaseId'
+          )"
+          if [[ -z "${run_id}" || "${run_id}" == "null" ]]; then
+            echo "No successful ForkedDiscover Fedora RPM workflow run found" >&2
+            exit 1
+          fi
+          gh run download "${run_id}" \
+            --repo jheinem1/ForkedDiscover \
+            --name fedora-rpm \
+            --dir forkeddiscover-rpm
+          find forkeddiscover-rpm \
+            -type f \
+            -path '*/RPMS/*' \
+            -name 'plasma-discover-flatpak-only-[0-9]*.rpm' \
+            ! -name '*debuginfo*' \
+            ! -name '*debugsource*' \
+            -print \
+            -quit | grep -q .
+
       # Image metadata for https://artifacthub.io/ - This is optional but is highly recommended so we all can get a index of all the custom images
       # The metadata by itself is not going to do anything, you choose if you want your image to be on ArtifactHub or not.
       - name: Image Metadata
