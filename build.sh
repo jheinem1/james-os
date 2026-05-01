@@ -29,6 +29,34 @@ rpm --import https://downloads.1password.com/linux/keys/1password.asc
 # Install all desired packages in one shot
 ###############################################################################
 dnf5 makecache -y
+
+###############################################################################
+# Replace Bazzite's OGC kernel with Fedora's stock kernel
+###############################################################################
+dnf5 versionlock delete \
+  kernel \
+  kernel-core \
+  kernel-devel \
+  kernel-devel-matched \
+  kernel-modules
+
+dnf5 \
+  --setopt=fedora.exclude= \
+  --setopt=updates.exclude= \
+  --setopt=updates-archive.exclude= \
+  install -y \
+  kernel \
+  kernel-core \
+  kernel-devel \
+  kernel-devel-matched \
+  kernel-modules \
+  kernel-modules-core \
+  kernel-modules-extra \
+  kernel-tools \
+  kernel-tools-libs \
+  --allowerasing \
+  --best
+
 dnf5 install -y \
   1password \
   1password-cli \
