@@ -14,6 +14,7 @@ COPY --chmod=0755 system/usr_local_bin__dolphin_discord_encode.py /usr/local/bin
 COPY --chmod=0755 system/usr_local_bin__topgrade-codex-desktop-linux-update /usr/local/bin/topgrade-codex-desktop-linux-update
 COPY --chmod=0755 system/usr_local_bin__kvm-display-recover /usr/local/bin/kvm-display-recover
 COPY --chmod=0755 system/usr_local_bin__kde-discord-idle-sync.py /usr/local/bin/kde-discord-idle-sync.py
+COPY --chmod=0755 system/usr_local_bin__patch-discord-vencord-asar.mjs /usr/local/bin/patch-discord-vencord-asar.mjs
 COPY --chmod=0644 system/usr_lib_systemd_user__kvm-display-recover.service /usr/lib/systemd/user/kvm-display-recover.service
 COPY --chmod=0644 system/usr_lib_systemd_user__kde-discord-idle-sync.service /usr/lib/systemd/user/kde-discord-idle-sync.service
 COPY --chmod=0644 system/usr_share_applications__discord-h264-encode.desktop /usr/share/applications/discord-h264-encode.desktop
