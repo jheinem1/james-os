@@ -108,8 +108,20 @@ export PATH="/tmp/npm-global/bin:${PATH}"
   cd /tmp/Vencord
   pnpm install --frozen-lockfile
   pnpm build
-  pnpm inject -- --location /usr/share/discord
+  install -Dm0644 dist/patcher.js /usr/share/vencord/patcher.js
+  install -Dm0644 dist/preload.js /usr/share/vencord/preload.js
+  install -Dm0644 dist/renderer.js /usr/share/vencord/renderer.js
+  install -Dm0644 dist/renderer.css /usr/share/vencord/renderer.css
 )
+
+node /usr/local/bin/patch-discord-vencord-asar.mjs
+test -f /usr/share/discord/resources/_app.asar
+test -f /usr/share/discord/resources/app.asar
+grep -aqF '/usr/share/vencord/patcher.js' /usr/share/discord/resources/app.asar
+test -f /usr/share/vencord/patcher.js
+test -f /usr/share/vencord/preload.js
+test -f /usr/share/vencord/renderer.js
+test -f /usr/share/vencord/renderer.css
 
 # Enable the KDE idle sync watcher for all users by default.
 mkdir -p /usr/lib/systemd/user/graphical-session.target.wants
@@ -124,7 +136,7 @@ ln -sfn /usr/lib/systemd/user/kvm-display-recover.service \
 ###############################################################################
 dnf5 remove -y gnome-disk-utility
 dnf5 remove -y lutris
-dnf5 remove -y nodejs npm
+dnf5 remove -y nodejs nodejs22 npm nodejs22-npm
 
 ###############################################################################
 # Relocate 1Password into /usr (so it's captured in the OSTree commit)
