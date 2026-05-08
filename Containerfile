@@ -7,6 +7,7 @@ ENV GNUPGHOME=/var/tmp/gnupg
 # Copy in baked config files
 COPY --chmod=0644 system/etc__hostname /etc/hostname
 COPY --chmod=0644 system/etc__kvm-display-recover.env /etc/kvm-display-recover.env
+COPY --chmod=0644 system/etc_modprobe.d__dirtyfrag.conf /etc/modprobe.d/dirtyfrag.conf
 COPY --chmod=0644 system/etc_ublue-os__topgrade.toml /etc/ublue-os/topgrade.toml
 COPY --chmod=0644 system/etc__vencord-kde-idle-sync.env /etc/vencord-kde-idle-sync.env
 COPY --chmod=0755 system/usr_local_bin__discord_encoder.py /usr/local/bin/discord_encoder.py
