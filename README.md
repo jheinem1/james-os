@@ -3,7 +3,6 @@
 A [Fedora Atomic](https://fedoraproject.org/atomic-desktops) image built with [Universal Blue](https://universal-blue.org/)’s toolkit.
 
 ## Changes from Bazzite
-- Uses Fedora's stock kernel instead of Bazzite's OGC kernel.
 - Replaces GNOME Disk Utility with KDE Partition Manager.
 - Removes Lutris.
 - Preinstalls 1Password and the 1Password CLI.
