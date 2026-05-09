@@ -55,7 +55,9 @@ mkdir -p /usr/share/discord
 tar -xzf /tmp/discord.tar.gz --strip-components=1 -C /usr/share/discord
 ln -sf /usr/share/discord/Discord /usr/bin/discord
 install -Dm0644 /usr/share/discord/discord.desktop /usr/share/applications/discord.desktop
-chmod 4755 /usr/share/discord/chrome-sandbox
+if [[ -e /usr/share/discord/chrome-sandbox ]]; then
+  chmod 4755 /usr/share/discord/chrome-sandbox
+fi
 
 # Discord's RPM desktop file uses Icon=discord but does not install that icon
 # into the theme search path. Provide a stable hicolor entry when Discord exists.
