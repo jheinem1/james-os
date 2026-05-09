@@ -150,6 +150,12 @@ mv /var/opt/1Password /usr/lib/1Password
 GID_ONEPASSWORD=1500
 GID_ONEPASSWORDCLI=1600
 
+# Create the groups in the image itself. Relying only on sysusers.d is not
+# sufficient on deployed ostree systems when systemd-sysusers is skipped because
+# /etc does not need an update.
+getent group onepassword >/dev/null || groupadd --system --gid "${GID_ONEPASSWORD}" onepassword
+getent group onepassword-cli >/dev/null || groupadd --system --gid "${GID_ONEPASSWORDCLI}" onepassword-cli
+
 # Chromium sandbox binaries must be root-owned before setuid is enabled.
 for sandbox_bin in \
   /usr/lib/1Password/chrome-sandbox \
