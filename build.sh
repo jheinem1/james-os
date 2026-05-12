@@ -3,6 +3,7 @@ set -euo pipefail
 
 VENCORD_REF="cba0eb9897419432e68277b0b60c301a6f8323cf"
 VENCORD_TAG="v1.14.6"
+DISCORD_RPM_URL="https://discord.com/api/download?platform=linux&format=rpm"
 
 ###############################################################################
 # Directories that must exist during the RPM unpack phase
@@ -47,21 +48,17 @@ dnf5 install -y \
   oxygen-icon-theme
 
 ###############################################################################
-# Install Discord at image level (official tarball)
+# Install Discord at image level (official RPM)
 ###############################################################################
-curl -L 'https://discord.com/api/download?platform=linux&format=tar.gz' \
-  -o /tmp/discord.tar.gz
-mkdir -p /usr/share/discord
-tar -xzf /tmp/discord.tar.gz --strip-components=1 -C /usr/share/discord
-if [[ -x /usr/share/discord/Discord ]]; then
-  ln -sf /usr/share/discord/Discord /usr/bin/discord
-elif [[ -x /usr/share/discord/discord ]]; then
-  ln -sf /usr/share/discord/discord /usr/bin/discord
+curl -fL "${DISCORD_RPM_URL}" -o /tmp/discord.rpm
+dnf5 install -y /tmp/discord.rpm
+rm -f /tmp/discord.rpm
+if [[ -x /usr/bin/discord ]]; then
+  :
 else
-  echo "Discord executable not found in official tarball" >&2
+  echo "Discord executable not found after installing official RPM" >&2
   exit 1
 fi
-install -Dm0644 /usr/share/discord/discord.desktop /usr/share/applications/discord.desktop
 if [[ -e /usr/share/discord/chrome-sandbox ]]; then
   chmod 4755 /usr/share/discord/chrome-sandbox
 fi
