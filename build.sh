@@ -140,6 +140,15 @@ if [[ -e /usr/share/discord/chrome-sandbox ]]; then
   chmod 4755 /usr/share/discord/chrome-sandbox
 fi
 
+# Drop the legacy Discord Flatpak RPC bridge if it is present from an older
+# image or layer. This image installs the native Discord RPM, and the bridge can
+# proxy its own socket into itself when no Flatpak Discord process owns the
+# target, flooding journald and burning CPU.
+rm -f \
+  /etc/systemd/user/sockets.target.wants/discord-flatpak-rpc-bridge.socket \
+  /etc/systemd/user/discord-flatpak-rpc-bridge.socket \
+  /etc/systemd/user/discord-flatpak-rpc-bridge.service
+
 # Discord's RPM desktop file uses Icon=discord but does not install that icon
 # into the theme search path. Provide a stable hicolor entry when Discord exists.
 mkdir -p /usr/share/icons/hicolor/256x256/apps
@@ -210,6 +219,40 @@ mv /var/opt/1Password /usr/lib/1Password
 # Choose high numeric GIDs that won't collide with regular user groups
 GID_ONEPASSWORD=1500
 GID_ONEPASSWORDCLI=1600
+
+# Create the groups in the image itself. Relying only on sysusers.d is not
+# sufficient on deployed ostree systems when systemd-sysusers is skipped because
+# /etc does not need an update.
+ensure_system_group_gid() {
+  local group_name="$1"
+  local expected_gid="$2"
+  local existing_group
+  local existing_gid
+  local gid_owner
+
+  existing_group="$(getent group "${group_name}" || true)"
+  if [[ -n "${existing_group}" ]]; then
+    existing_gid="$(cut -d: -f3 <<<"${existing_group}")"
+    if [[ "${existing_gid}" != "${expected_gid}" ]]; then
+      gid_owner="$(getent group "${expected_gid}" | cut -d: -f1 || true)"
+      if [[ -n "${gid_owner}" && "${gid_owner}" != "${group_name}" ]]; then
+        echo "Cannot set ${group_name} to GID ${expected_gid}: already used by ${gid_owner}" >&2
+        exit 1
+      fi
+      groupmod --gid "${expected_gid}" "${group_name}"
+    fi
+  else
+    gid_owner="$(getent group "${expected_gid}" | cut -d: -f1 || true)"
+    if [[ -n "${gid_owner}" ]]; then
+      echo "Cannot create ${group_name} with GID ${expected_gid}: already used by ${gid_owner}" >&2
+      exit 1
+    fi
+    groupadd --system --gid "${expected_gid}" "${group_name}"
+  fi
+}
+
+ensure_system_group_gid onepassword "${GID_ONEPASSWORD}"
+ensure_system_group_gid onepassword-cli "${GID_ONEPASSWORDCLI}"
 
 # Chromium sandbox binaries must be root-owned before setuid is enabled.
 for sandbox_bin in \
