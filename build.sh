@@ -195,8 +195,36 @@ GID_ONEPASSWORDCLI=1600
 # Create the groups in the image itself. Relying only on sysusers.d is not
 # sufficient on deployed ostree systems when systemd-sysusers is skipped because
 # /etc does not need an update.
-getent group onepassword >/dev/null || groupadd --system --gid "${GID_ONEPASSWORD}" onepassword
-getent group onepassword-cli >/dev/null || groupadd --system --gid "${GID_ONEPASSWORDCLI}" onepassword-cli
+ensure_system_group_gid() {
+  local group_name="$1"
+  local expected_gid="$2"
+  local existing_group
+  local existing_gid
+  local gid_owner
+
+  existing_group="$(getent group "${group_name}" || true)"
+  if [[ -n "${existing_group}" ]]; then
+    existing_gid="$(cut -d: -f3 <<<"${existing_group}")"
+    if [[ "${existing_gid}" != "${expected_gid}" ]]; then
+      gid_owner="$(getent group "${expected_gid}" | cut -d: -f1 || true)"
+      if [[ -n "${gid_owner}" && "${gid_owner}" != "${group_name}" ]]; then
+        echo "Cannot set ${group_name} to GID ${expected_gid}: already used by ${gid_owner}" >&2
+        exit 1
+      fi
+      groupmod --gid "${expected_gid}" "${group_name}"
+    fi
+  else
+    gid_owner="$(getent group "${expected_gid}" | cut -d: -f1 || true)"
+    if [[ -n "${gid_owner}" ]]; then
+      echo "Cannot create ${group_name} with GID ${expected_gid}: already used by ${gid_owner}" >&2
+      exit 1
+    fi
+    groupadd --system --gid "${expected_gid}" "${group_name}"
+  fi
+}
+
+ensure_system_group_gid onepassword "${GID_ONEPASSWORD}"
+ensure_system_group_gid onepassword-cli "${GID_ONEPASSWORDCLI}"
 
 # Chromium sandbox binaries must be root-owned before setuid is enabled.
 for sandbox_bin in \
