@@ -187,6 +187,7 @@ ln -sfn /usr/lib/systemd/user/kvm-display-recover.service \
 ###############################################################################
 dnf5 remove -y gnome-disk-utility
 dnf5 remove -y lutris
+dnf5 remove -y bazaar krunner-bazaar
 dnf5 remove -y nodejs nodejs22 npm nodejs22-npm
 
 ###############################################################################
