@@ -77,6 +77,65 @@ else
   echo "Discord executable not found after installing official RPM" >&2
   exit 1
 fi
+cat > /usr/bin/discord <<'EOF'
+#!/bin/sh
+
+CHANNEL=stable
+DOWNLOAD=https://updates.discord.com/
+DIR=discord
+EXE=Discord
+BOOTSTRAP_SUFFIX=discord/updater_bootstrap
+
+config_home=$XDG_CONFIG_HOME
+if [ -z "$config_home" ]; then
+    config_home=$HOME/.config
+fi
+
+discord_host=$config_home/$DIR/$EXE
+
+apply_discord_vaapi_fixes() {
+    for voice_dir in "$config_home"/$DIR/[0-9]*.[0-9]*.[0-9]*/modules/discord_voice; do
+        [ -d "$voice_dir" ] || continue
+        chmod u+x "$voice_dir/gpu_encoder_helper" "$voice_dir/discord_voice.node" 2>/dev/null || true
+    done
+}
+
+discord_flags="--enable-features=VaapiVideoDecoder,VaapiVideoEncoder,AcceleratedVideoEncoder --ignore-gpu-blocklist"
+
+if [ ! -x "$discord_host" ]; then
+    mkdir -p "$config_home/$DIR"
+    if [ ! -d "$config_home/$DIR" ]; then
+        echo "Fatal error, failed to create $DIR in $config_home" >&2
+        exit 1
+    fi
+    if [ -t 1 ]; then
+        zenity=--no-zenity
+    else
+        zenity=--zenity
+    fi
+    bootstrap=/usr/share/$BOOTSTRAP_SUFFIX
+    if [ ! -x "$bootstrap" ]; then
+        bootstrap=/opt/$BOOTSTRAP_SUFFIX
+        if [ ! -x "$bootstrap" ]; then
+            bootstrap=`dirname -- "$0"`/updater_bootstrap
+        fi
+    fi
+    app_dir=`"$bootstrap" $zenity "$config_home/$DIR" $CHANNEL "$DOWNLOAD"`
+
+    if [ $? -eq 0 ] ; then
+        echo "Bootstrap complete"
+        apply_discord_vaapi_fixes
+        exec "$config_home/$DIR/$app_dir/$EXE" $discord_flags "$@"
+    else
+        echo "Bootstrap failed or was canceled"
+        exit 2
+    fi
+fi
+
+apply_discord_vaapi_fixes
+exec "$discord_host" $discord_flags "$@"
+EOF
+chmod 0755 /usr/bin/discord
 if [[ -e /usr/share/discord/chrome-sandbox ]]; then
   chmod 4755 /usr/share/discord/chrome-sandbox
 fi
