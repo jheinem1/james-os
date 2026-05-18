@@ -3,7 +3,6 @@
 A [Fedora Atomic](https://fedoraproject.org/atomic-desktops) image built with [Universal Blue](https://universal-blue.org/)’s toolkit.
 
 ## Changes from Bazzite
-- Uses Fedora's stock kernel instead of Bazzite's OGC kernel.
 - Replaces GNOME Disk Utility with KDE Partition Manager.
 - Removes Lutris.
 - Replaces Bazaar with the `plasma-discover-flatpak-only` package from `jheinem1/ForkedDiscover`.
@@ -13,7 +12,7 @@ A [Fedora Atomic](https://fedoraproject.org/atomic-desktops) image built with [U
 - Preinstalls Piper for configuring mice.
 - Preinstalls CoreCtrl for power management.
 - Adds an Open With action in Dolphin to encode videos for Discord using CPU H.264 with a target-size popup and progress bar.
-- Installs Discord from the official tarball at image build time, patches it with a pinned Vencord build, and includes a KDE idle/lock watcher that can drive Discord presence over a local socket.
+- Installs Discord from the official RPM at image build time, patches it with a pinned Vencord build when app resources are available, and includes a KDE idle/lock watcher that can drive Discord presence over a local socket.
 - Includes a KDE user service that automatically reapplies the right HDR display configuration after a KVM reconnect on the default dual-monitor setup.
 
 ## How to use
