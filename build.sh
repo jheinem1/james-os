@@ -122,6 +122,15 @@ if [[ -e /usr/share/discord/chrome-sandbox ]]; then
   chmod 4755 /usr/share/discord/chrome-sandbox
 fi
 
+# Drop the legacy Discord Flatpak RPC bridge if it is present from an older
+# image or layer. This image installs the native Discord RPM, and the bridge can
+# proxy its own socket into itself when no Flatpak Discord process owns the
+# target, flooding journald and burning CPU.
+rm -f \
+  /etc/systemd/user/sockets.target.wants/discord-flatpak-rpc-bridge.socket \
+  /etc/systemd/user/discord-flatpak-rpc-bridge.socket \
+  /etc/systemd/user/discord-flatpak-rpc-bridge.service
+
 # Discord's RPM desktop file uses Icon=discord but does not install that icon
 # into the theme search path. Provide a stable hicolor entry when Discord exists.
 mkdir -p /usr/share/icons/hicolor/256x256/apps
