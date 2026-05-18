@@ -3,6 +3,7 @@ set -euo pipefail
 
 VENCORD_REF="cba0eb9897419432e68277b0b60c301a6f8323cf"
 VENCORD_TAG="v1.14.6"
+DISCORD_RPM_URL="https://discord.com/api/download?platform=linux&format=rpm"
 
 ###############################################################################
 # Directories that must exist during the RPM unpack phase
@@ -30,33 +31,6 @@ rpm --import https://downloads.1password.com/linux/keys/1password.asc
 ###############################################################################
 dnf5 makecache -y
 
-###############################################################################
-# Replace Bazzite's OGC kernel with Fedora's stock kernel
-###############################################################################
-dnf5 versionlock delete \
-  kernel \
-  kernel-core \
-  kernel-devel \
-  kernel-devel-matched \
-  kernel-modules
-
-dnf5 \
-  --setopt=fedora.exclude= \
-  --setopt=updates.exclude= \
-  --setopt=updates-archive.exclude= \
-  install -y \
-  kernel \
-  kernel-core \
-  kernel-devel \
-  kernel-devel-matched \
-  kernel-modules \
-  kernel-modules-core \
-  kernel-modules-extra \
-  kernel-tools \
-  kernel-tools-libs \
-  --allowerasing \
-  --best
-
 dnf5 install -y \
   1password \
   1password-cli \
@@ -74,54 +48,63 @@ dnf5 install -y \
   oxygen-icon-theme
 
 ###############################################################################
-# Install Discord at image level (official tarball)
+# Install Discord at image level (official RPM)
 ###############################################################################
-curl -L 'https://discord.com/api/download?platform=linux&format=tar.gz' \
-  -o /tmp/discord.tar.gz
-mkdir -p /usr/share/discord
-tar -xzf /tmp/discord.tar.gz --strip-components=1 -C /usr/share/discord
-ln -sf /usr/share/discord/Discord /usr/bin/discord
-install -Dm0644 /usr/share/discord/discord.desktop /usr/share/applications/discord.desktop
-chmod 4755 /usr/share/discord/chrome-sandbox
+curl -fL "${DISCORD_RPM_URL}" -o /tmp/discord.rpm
+dnf5 install -y /tmp/discord.rpm
+rm -f /tmp/discord.rpm
+if [[ -x /usr/bin/discord ]]; then
+  :
+else
+  echo "Discord executable not found after installing official RPM" >&2
+  exit 1
+fi
+if [[ -e /usr/share/discord/chrome-sandbox ]]; then
+  chmod 4755 /usr/share/discord/chrome-sandbox
+fi
 
 # Discord's RPM desktop file uses Icon=discord but does not install that icon
 # into the theme search path. Provide a stable hicolor entry when Discord exists.
 mkdir -p /usr/share/icons/hicolor/256x256/apps
 ln -sfn /usr/share/discord/discord.png /usr/share/icons/hicolor/256x256/apps/discord.png
 
-###############################################################################
-# Install Vencord into the image-level Discord tree with the KDE idle plugin
-###############################################################################
-git clone --depth=1 --branch "${VENCORD_TAG}" https://github.com/Vendicated/Vencord.git /tmp/Vencord
-git -C /tmp/Vencord checkout "${VENCORD_REF}"
-mkdir -p /tmp/Vencord/src/plugins/kdeIdleSync.discordDesktop
-cp /tmp/vencord-overlay/src/plugins/kdeIdleSync.discordDesktop/index.ts /tmp/Vencord/src/plugins/kdeIdleSync.discordDesktop/index.ts
-cp /tmp/vencord-overlay/src/plugins/kdeIdleSync.discordDesktop/native.ts /tmp/Vencord/src/plugins/kdeIdleSync.discordDesktop/native.ts
-export HOME=/tmp
-export XDG_CONFIG_HOME=/tmp/.config
-export XDG_DATA_HOME=/tmp/.local/share
-export npm_config_cache=/tmp/npm-cache
-export npm_config_prefix=/tmp/npm-global
-npm install -g pnpm@10.4.1
-export PATH="/tmp/npm-global/bin:${PATH}"
-(
-  cd /tmp/Vencord
-  pnpm install --frozen-lockfile
-  pnpm build
-  install -Dm0644 dist/patcher.js /usr/share/vencord/patcher.js
-  install -Dm0644 dist/preload.js /usr/share/vencord/preload.js
-  install -Dm0644 dist/renderer.js /usr/share/vencord/renderer.js
-  install -Dm0644 dist/renderer.css /usr/share/vencord/renderer.css
-)
+if [[ -f /usr/share/discord/resources/app.asar ]]; then
+  ###############################################################################
+  # Install Vencord into the image-level Discord tree with the KDE idle plugin
+  ###############################################################################
+  git clone --depth=1 --branch "${VENCORD_TAG}" https://github.com/Vendicated/Vencord.git /tmp/Vencord
+  git -C /tmp/Vencord checkout "${VENCORD_REF}"
+  mkdir -p /tmp/Vencord/src/plugins/kdeIdleSync.discordDesktop
+  cp /tmp/vencord-overlay/src/plugins/kdeIdleSync.discordDesktop/index.ts /tmp/Vencord/src/plugins/kdeIdleSync.discordDesktop/index.ts
+  cp /tmp/vencord-overlay/src/plugins/kdeIdleSync.discordDesktop/native.ts /tmp/Vencord/src/plugins/kdeIdleSync.discordDesktop/native.ts
+  export HOME=/tmp
+  export XDG_CONFIG_HOME=/tmp/.config
+  export XDG_DATA_HOME=/tmp/.local/share
+  export npm_config_cache=/tmp/npm-cache
+  export npm_config_prefix=/tmp/npm-global
+  npm install -g pnpm@10.4.1
+  export PATH="/tmp/npm-global/bin:${PATH}"
+  (
+    cd /tmp/Vencord
+    pnpm install --frozen-lockfile
+    pnpm build
+    install -Dm0644 dist/patcher.js /usr/share/vencord/patcher.js
+    install -Dm0644 dist/preload.js /usr/share/vencord/preload.js
+    install -Dm0644 dist/renderer.js /usr/share/vencord/renderer.js
+    install -Dm0644 dist/renderer.css /usr/share/vencord/renderer.css
+  )
 
-node /usr/local/bin/patch-discord-vencord-asar.mjs
-test -f /usr/share/discord/resources/_app.asar
-test -f /usr/share/discord/resources/app.asar
-grep -aqF '/usr/share/vencord/patcher.js' /usr/share/discord/resources/app.asar
-test -f /usr/share/vencord/patcher.js
-test -f /usr/share/vencord/preload.js
-test -f /usr/share/vencord/renderer.js
-test -f /usr/share/vencord/renderer.css
+  node /usr/local/bin/patch-discord-vencord-asar.mjs
+  test -f /usr/share/discord/resources/_app.asar
+  test -f /usr/share/discord/resources/app.asar
+  grep -aqF '/usr/share/vencord/patcher.js' /usr/share/discord/resources/app.asar
+  test -f /usr/share/vencord/patcher.js
+  test -f /usr/share/vencord/preload.js
+  test -f /usr/share/vencord/renderer.js
+  test -f /usr/share/vencord/renderer.css
+else
+  echo "Discord package does not include resources/app.asar; skipping image-level Vencord patch"
+fi
 
 # Enable the KDE idle sync watcher for all users by default.
 mkdir -p /usr/lib/systemd/user/graphical-session.target.wants
