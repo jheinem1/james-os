@@ -1,7 +1,6 @@
 FROM ghcr.io/ublue-os/bazzite:stable
 
 COPY build.sh /tmp/build.sh
-COPY forkeddiscover-rpm /tmp/forkeddiscover-rpm
 COPY vencord-overlay /tmp/vencord-overlay
 ENV GNUPGHOME=/var/tmp/gnupg
 
