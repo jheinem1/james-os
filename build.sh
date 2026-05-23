@@ -145,9 +145,16 @@ fi
 # proxy its own socket into itself when no Flatpak Discord process owns the
 # target, flooding journald and burning CPU.
 rm -f \
+  /etc/systemd/user/default.target.wants/discord-flatpak-rpc-bridge.service \
+  /etc/systemd/user/default.target.wants/discord-flatpak-rpc-bridge.socket \
   /etc/systemd/user/sockets.target.wants/discord-flatpak-rpc-bridge.socket \
   /etc/systemd/user/discord-flatpak-rpc-bridge.socket \
-  /etc/systemd/user/discord-flatpak-rpc-bridge.service
+  /etc/systemd/user/discord-flatpak-rpc-bridge.service \
+  /usr/lib/systemd/user/default.target.wants/discord-flatpak-rpc-bridge.service \
+  /usr/lib/systemd/user/default.target.wants/discord-flatpak-rpc-bridge.socket \
+  /usr/lib/systemd/user/sockets.target.wants/discord-flatpak-rpc-bridge.socket \
+  /usr/lib/systemd/user/discord-flatpak-rpc-bridge.socket \
+  /usr/lib/systemd/user/discord-flatpak-rpc-bridge.service
 
 # Discord's RPM desktop file uses Icon=discord but does not install that icon
 # into the theme search path. Provide a stable hicolor entry when Discord exists.
