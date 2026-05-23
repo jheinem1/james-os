@@ -107,6 +107,7 @@ running_app_pid() {
 
 collect_running_pids() {
     local electron_path
+    local electron_pid
     local start_path
     local webview_path
     local proc_dir
@@ -115,6 +116,7 @@ collect_running_pids() {
     local cmdline
 
     electron_path="$(realpath -m "$APP_DIR/electron")"
+    electron_pid="$(running_app_pid || true)"
     start_path="$(realpath -m "$APP_DIR/start.sh")"
     webview_path="$(realpath -m "$APP_DIR/.codex-linux/webview-server.py")"
 
@@ -129,11 +131,33 @@ collect_running_pids() {
         cmdline="$(tr '\0' ' ' < "$proc_dir/cmdline" 2>/dev/null || true)"
 
         case "$actual:$cmdline" in
-            "$electron_path":*|*"$start_path"*|*"$webview_path"*|*"codex app-server --analytics-default-enabled"*)
+            "$electron_path":*|*"$start_path"*|*"$webview_path"*)
                 echo "$pid"
                 ;;
         esac
+
+        if [ -n "$electron_pid" ] \
+            && [ "$pid" != "$electron_pid" ] \
+            && is_descendant_of "$pid" "$electron_pid" \
+            && [[ "$cmdline" == *"codex app-server --analytics-default-enabled"* ]]; then
+            echo "$pid"
+        fi
     done | sort -n -u
+}
+
+is_descendant_of() {
+    local pid="$1"
+    local ancestor="$2"
+    local parent
+
+    while [ -n "$pid" ] && [ "$pid" != "0" ] && [ -r "/proc/$pid/status" ]; do
+        [ "$pid" != "$ancestor" ] || return 0
+        parent="$(awk '/^PPid:/ { print $2; exit }' "/proc/$pid/status" 2>/dev/null || true)"
+        [ -n "$parent" ] || return 1
+        pid="$parent"
+    done
+
+    return 1
 }
 
 stop_running_app() {
@@ -174,13 +198,8 @@ restart_app_if_needed() {
 
     echo "Restarting Codex Desktop..."
     nohup "$APP_DIR/start.sh" >/dev/null 2>&1 &
+    restart_after_update=0
 }
-
-restart_after_update=0
-if running_app_pid >/dev/null; then
-    restart_after_update=1
-    stop_running_app
-fi
 
 old_head="$(git -C "$REPO_DIR" rev-parse HEAD)"
 git -C "$REPO_DIR" pull --ff-only
@@ -193,6 +212,13 @@ fi
 write_install_env
 patch_installed_common
 
+restart_after_update=0
+if running_app_pid >/dev/null; then
+    restart_after_update=1
+    stop_running_app
+    trap restart_app_if_needed EXIT
+fi
+
 if pid="$(running_app_pid)"; then
     echo "Codex Desktop is still running from $APP_DIR (pid $pid); cannot update safely." >&2
     exit 1
@@ -200,9 +226,7 @@ fi
 
 if [ "$old_head" != "$new_head" ]; then
     "$HOME/.local/bin/codex-desktop-update" --force
-    restart_app_if_needed
     exit 0
 fi
 
 "$HOME/.local/bin/codex-desktop-update"
-restart_app_if_needed
