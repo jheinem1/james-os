@@ -105,6 +105,102 @@ running_app_pid() {
     return 1
 }
 
+collect_running_pids() {
+    local electron_path
+    local electron_pid
+    local start_path
+    local webview_path
+    local proc_dir
+    local pid
+    local actual
+    local cmdline
+
+    electron_path="$(realpath -m "$APP_DIR/electron")"
+    electron_pid="$(running_app_pid || true)"
+    start_path="$(realpath -m "$APP_DIR/start.sh")"
+    webview_path="$(realpath -m "$APP_DIR/.codex-linux/webview-server.py")"
+
+    for proc_dir in /proc/[0-9]*; do
+        [ -d "$proc_dir" ] || continue
+        pid="${proc_dir#/proc/}"
+        [ "$pid" != "$$" ] || continue
+
+        actual="$(readlink -f "$proc_dir/exe" 2>/dev/null || true)"
+        [ -n "$actual" ] && actual="$(realpath -m "$actual")"
+
+        cmdline="$(tr '\0' ' ' < "$proc_dir/cmdline" 2>/dev/null || true)"
+
+        case "$actual:$cmdline" in
+            "$electron_path":*|*"$start_path"*|*"$webview_path"*)
+                echo "$pid"
+                ;;
+        esac
+
+        if [ -n "$electron_pid" ] \
+            && [ "$pid" != "$electron_pid" ] \
+            && is_descendant_of "$pid" "$electron_pid" \
+            && [[ "$cmdline" == *"codex app-server --analytics-default-enabled"* ]]; then
+            echo "$pid"
+        fi
+    done | sort -n -u
+}
+
+is_descendant_of() {
+    local pid="$1"
+    local ancestor="$2"
+    local parent
+
+    while [ -n "$pid" ] && [ "$pid" != "0" ] && [ -r "/proc/$pid/status" ]; do
+        [ "$pid" != "$ancestor" ] || return 0
+        parent="$(awk '/^PPid:/ { print $2; exit }' "/proc/$pid/status" 2>/dev/null || true)"
+        [ -n "$parent" ] || return 1
+        pid="$parent"
+    done
+
+    return 1
+}
+
+stop_running_app() {
+    local pids
+    local pid
+    local deadline
+    local remaining
+
+    pids="$(collect_running_pids)"
+    [ -n "$pids" ] || return 0
+
+    echo "Stopping Codex Desktop before updating..."
+    while IFS= read -r pid; do
+        [ -n "$pid" ] || continue
+        kill -TERM "$pid" 2>/dev/null || true
+    done <<< "$pids"
+
+    deadline=$((SECONDS + 15))
+    while [ "$SECONDS" -lt "$deadline" ]; do
+        remaining="$(collect_running_pids)"
+        [ -z "$remaining" ] && return 0
+        sleep 0.5
+    done
+
+    remaining="$(collect_running_pids)"
+    if [ -n "$remaining" ]; then
+        echo "Codex Desktop did not exit after SIGTERM; forcing remaining processes: ${remaining//$'\n'/ }"
+        while IFS= read -r pid; do
+            [ -n "$pid" ] || continue
+            kill -KILL "$pid" 2>/dev/null || true
+        done <<< "$remaining"
+    fi
+}
+
+restart_app_if_needed() {
+    [ "${restart_after_update:-0}" -eq 1 ] || return 0
+    [ -x "$APP_DIR/start.sh" ] || return 0
+
+    echo "Restarting Codex Desktop..."
+    nohup "$APP_DIR/start.sh" >/dev/null 2>&1 &
+    restart_after_update=0
+}
+
 old_head="$(git -C "$REPO_DIR" rev-parse HEAD)"
 git -C "$REPO_DIR" pull --ff-only
 new_head="$(git -C "$REPO_DIR" rev-parse HEAD)"
@@ -116,14 +212,21 @@ fi
 write_install_env
 patch_installed_common
 
+restart_after_update=0
+if running_app_pid >/dev/null; then
+    restart_after_update=1
+    stop_running_app
+    trap restart_app_if_needed EXIT
+fi
+
 if pid="$(running_app_pid)"; then
-    echo "Codex Desktop is running from $APP_DIR (pid $pid); skipping rebuild."
-    echo "Close Codex Desktop and rerun System Update to apply Codex Desktop updates."
-    exit 0
+    echo "Codex Desktop is still running from $APP_DIR (pid $pid); cannot update safely." >&2
+    exit 1
 fi
 
 if [ "$old_head" != "$new_head" ]; then
-    exec "$HOME/.local/bin/codex-desktop-update" --force
+    "$HOME/.local/bin/codex-desktop-update" --force
+    exit 0
 fi
 
-exec "$HOME/.local/bin/codex-desktop-update"
+"$HOME/.local/bin/codex-desktop-update"
