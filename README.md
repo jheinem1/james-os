@@ -5,7 +5,6 @@ A [Fedora Atomic](https://fedoraproject.org/atomic-desktops) image built with [U
 ## Changes from Bazzite
 - Replaces GNOME Disk Utility with KDE Partition Manager.
 - Removes Lutris.
-- Replaces Bazaar with the `plasma-discover-flatpak-only` package from `jheinem1/ForkedDiscover`.
 - Preinstalls 1Password and the 1Password CLI.
 - Adds back Konsole as a terminal option and Yakuake to complement it (ptyxis remains the default for compatibility with some Bazzite features).
 - Launches the System Update shortcut in Konsole and includes a Topgrade custom step for a local `codex-desktop-linux` checkout.

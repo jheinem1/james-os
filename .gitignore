@@ -1,5 +1,3 @@
 cosign.key
-forkeddiscover-rpm/*
-!forkeddiscover-rpm/.gitkeep
 _build_*
 .zed
