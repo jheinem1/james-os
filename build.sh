@@ -257,15 +257,41 @@ done
 # Helper & CLI binaries need dedicated groups + setgid
 chgrp ${GID_ONEPASSWORD} /usr/lib/1Password/1Password-BrowserSupport
 chmod g+s               /usr/lib/1Password/1Password-BrowserSupport
+chgrp ${GID_ONEPASSWORD} /usr/lib/1Password/onepassword-mcp
+chmod g+s               /usr/lib/1Password/onepassword-mcp
 
 chgrp ${GID_ONEPASSWORDCLI} /usr/bin/op
 chmod g+s                 /usr/bin/op
 
 # sysusers file – creates groups (once) at boot
 cat > /usr/lib/sysusers.d/onepassword.conf <<EOF
-g onepassword     ${GID_ONEPASSWORD}     "1Password application group"
-g onepassword-cli ${GID_ONEPASSWORDCLI}  "1Password CLI group"
+g onepassword     ${GID_ONEPASSWORD}
+g onepassword-cli ${GID_ONEPASSWORDCLI}
 EOF
+
+# Ensure upgraded ostree deployments materialize these groups in /etc/group.
+# systemd-sysusers.service is conditional on /etc needing an update, which can
+# skip new sysusers snippets on already-installed systems.
+cat > /usr/lib/systemd/system/james-os-1password-groups.service <<'EOF'
+[Unit]
+Description=Ensure 1Password integration groups exist
+Documentation=man:sysusers.d(5) man:systemd-sysusers(8)
+DefaultDependencies=no
+After=systemd-remount-fs.service
+Before=sysinit.target
+ConditionPathExists=/usr/lib/sysusers.d/onepassword.conf
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/systemd-sysusers /usr/lib/sysusers.d/onepassword.conf
+
+[Install]
+WantedBy=sysinit.target
+EOF
+
+mkdir -p /usr/lib/systemd/system/sysinit.target.wants
+ln -sfn ../james-os-1password-groups.service \
+  /usr/lib/systemd/system/sysinit.target.wants/james-os-1password-groups.service
 
 # tmpfiles rule – recreates /opt/1Password symlink on every boot
 cat > /usr/lib/tmpfiles.d/onepassword.conf <<'EOF'
