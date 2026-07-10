@@ -75,14 +75,14 @@ fi
 
 discord_host=$config_home/$DIR/$EXE
 
-apply_discord_vaapi_fixes() {
+apply_discord_runtime_fixes() {
     for voice_dir in "$config_home"/$DIR/[0-9]*.[0-9]*.[0-9]*/modules/discord_voice; do
         [ -d "$voice_dir" ] || continue
         chmod u+x "$voice_dir/gpu_encoder_helper" "$voice_dir/discord_voice.node" 2>/dev/null || true
     done
 }
 
-discord_flags="--enable-features=VaapiVideoDecoder,VaapiVideoEncoder,AcceleratedVideoEncoder --ignore-gpu-blocklist"
+discord_flags="--ozone-platform=wayland --enable-features=UseOzonePlatform,WaylandWindowDecorations --ignore-gpu-blocklist --enable-gpu-rasterization --enable-zero-copy --disable-vulkan"
 
 if [ ! -x "$discord_host" ]; then
     mkdir -p "$config_home/$DIR"
@@ -106,7 +106,7 @@ if [ ! -x "$discord_host" ]; then
 
     if [ $? -eq 0 ] ; then
         echo "Bootstrap complete"
-        apply_discord_vaapi_fixes
+        apply_discord_runtime_fixes
         exec "$config_home/$DIR/$app_dir/$EXE" $discord_flags "$@"
     else
         echo "Bootstrap failed or was canceled"
@@ -114,7 +114,7 @@ if [ ! -x "$discord_host" ]; then
     fi
 fi
 
-apply_discord_vaapi_fixes
+apply_discord_runtime_fixes
 exec "$discord_host" $discord_flags "$@"
 EOF
 chmod 0755 /usr/bin/discord
