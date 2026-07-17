@@ -1,39 +1,167 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-repo_candidates=(
-    "${CODEX_DESKTOP_LINUX_REPO:-}"
-    "${HOME}/codex-desktop-linux"
-    "${HOME}/Projects/codex-desktop-linux"
-    "${HOME}/workspace/codex-desktop-linux"
-)
-
-REPO_DIR=""
-for candidate in "${repo_candidates[@]}"; do
-    if [ -n "$candidate" ] && [ -d "$candidate/.git" ]; then
-        REPO_DIR="$candidate"
-        break
-    fi
-done
-
-if [ -z "$REPO_DIR" ]; then
-    echo "codex-desktop-linux checkout not found; set CODEX_DESKTOP_LINUX_REPO." >&2
-    exit 1
-fi
-
+CANONICAL_REPO_URL="https://github.com/ilysenko/codex-desktop-linux.git"
+CANONICAL_DEFAULT_BRANCH="main"
+DATA_HOME="${XDG_DATA_HOME:-${HOME}/.local/share}"
+MANAGED_REPO_DIR="${DATA_HOME}/codex-desktop-linux/managed-repo"
 OPT_ROOT="${HOME}/.local/opt/codex-desktop-linux"
 APP_DIR="${OPT_ROOT}/codex-app"
 STATE_DIR="${XDG_STATE_HOME:-${HOME}/.local/state}/codex-desktop-linux"
 INSTALL_ENV="${STATE_DIR}/install.env"
-DMG_FILE="${REPO_DIR}/Codex.dmg"
+REPO_DIR=""
+DMG_FILE=""
+SOURCE_MODE=""
+SOURCE_OLD_HEAD=""
+SOURCE_NEW_HEAD=""
 
 # Avoid interactive npx package-install prompts during unattended Topgrade runs.
 export npm_config_yes=true
+
+fail() {
+    echo "topgrade-codex-desktop-linux-update: $*" >&2
+    exit 1
+}
+
+normalize_repo_url() {
+    local url="$1"
+
+    url="${url%/}"
+    url="${url%.git}"
+    case "$url" in
+        git@github.com:*)
+            url="https://github.com/${url#git@github.com:}"
+            ;;
+        ssh://git@github.com/*)
+            url="https://github.com/${url#ssh://git@github.com/}"
+            ;;
+    esac
+
+    printf '%s\n' "$url" | tr '[:upper:]' '[:lower:]'
+}
+
+is_git_checkout() {
+    local repo_dir="$1"
+    [ -d "$repo_dir" ] \
+        && [ "$(git -C "$repo_dir" rev-parse --is-inside-work-tree 2>/dev/null || true)" = "true" ]
+}
+
+validate_repo_origin() {
+    local repo_dir="$1"
+    local origin_url
+
+    origin_url="$(git -C "$repo_dir" remote get-url origin 2>/dev/null || true)"
+    [ -n "$origin_url" ] || fail "checkout has no origin remote: $repo_dir"
+
+    if [ "$(normalize_repo_url "$origin_url")" != "$(normalize_repo_url "$CANONICAL_REPO_URL")" ]; then
+        fail "checkout origin is not the canonical source: $repo_dir"
+    fi
+}
+
+ensure_managed_origin() {
+    local origin_url
+
+    origin_url="$(git -C "$MANAGED_REPO_DIR" remote get-url origin 2>/dev/null || true)"
+    if [ -z "$origin_url" ]; then
+        echo "Configuring canonical origin for the managed Codex Desktop source..."
+        git -C "$MANAGED_REPO_DIR" remote add origin "$CANONICAL_REPO_URL"
+    elif [ "$(normalize_repo_url "$origin_url")" != "$(normalize_repo_url "$CANONICAL_REPO_URL")" ]; then
+        echo "Repointing the managed Codex Desktop source to its canonical origin..."
+        git -C "$MANAGED_REPO_DIR" remote set-url origin "$CANONICAL_REPO_URL"
+    fi
+
+    git -C "$MANAGED_REPO_DIR" config --replace-all \
+        remote.origin.fetch '+refs/heads/*:refs/remotes/origin/*'
+}
+
+select_source_repo() {
+    if [ -n "${CODEX_DESKTOP_LINUX_REPO:-}" ]; then
+        REPO_DIR="${CODEX_DESKTOP_LINUX_REPO}"
+        SOURCE_MODE="explicit"
+    else
+        REPO_DIR="$MANAGED_REPO_DIR"
+        SOURCE_MODE="managed"
+    fi
+    DMG_FILE="${REPO_DIR}/Codex.dmg"
+}
+
+clone_managed_repo() {
+    mkdir -p "$(dirname "$MANAGED_REPO_DIR")"
+    git clone \
+        --origin origin \
+        --branch "$CANONICAL_DEFAULT_BRANCH" \
+        --single-branch \
+        "$CANONICAL_REPO_URL" \
+        "$MANAGED_REPO_DIR"
+}
+
+fetch_source_repo() {
+    git -C "$REPO_DIR" fetch --prune origin
+}
+
+prepare_source_repo() {
+    local canonical_ref="origin/${CANONICAL_DEFAULT_BRANCH}"
+    local ahead
+    local behind
+    local counts
+    local dirty
+
+    select_source_repo
+
+    if [ "$SOURCE_MODE" = "explicit" ]; then
+        is_git_checkout "$REPO_DIR" || fail "CODEX_DESKTOP_LINUX_REPO is not a Git checkout: $REPO_DIR"
+        validate_repo_origin "$REPO_DIR"
+
+        dirty="$(git -C "$REPO_DIR" status --porcelain --untracked-files=normal)"
+        if [ -n "$dirty" ]; then
+            fail "CODEX_DESKTOP_LINUX_REPO is dirty; refusing to modify it: $REPO_DIR"
+        fi
+        SOURCE_OLD_HEAD="$(git -C "$REPO_DIR" rev-parse HEAD)"
+    else
+        if [ -e "$REPO_DIR" ] && ! is_git_checkout "$REPO_DIR"; then
+            fail "managed source path exists but is not a Git checkout: $REPO_DIR"
+        fi
+        if ! is_git_checkout "$REPO_DIR"; then
+            clone_managed_repo
+            SOURCE_OLD_HEAD=""
+        else
+            SOURCE_OLD_HEAD="$(git -C "$REPO_DIR" rev-parse HEAD 2>/dev/null || true)"
+        fi
+        ensure_managed_origin
+    fi
+
+    fetch_source_repo
+    git -C "$REPO_DIR" rev-parse --verify --quiet "$canonical_ref" >/dev/null \
+        || fail "canonical branch is unavailable after fetch: $canonical_ref"
+
+    if [ "$SOURCE_MODE" = "explicit" ]; then
+        counts="$(git -C "$REPO_DIR" rev-list --left-right --count "HEAD...${canonical_ref}")"
+        read -r ahead behind <<<"$counts"
+        if [ "$ahead" -ne 0 ]; then
+            fail "CODEX_DESKTOP_LINUX_REPO has local or diverged commits; refusing to modify it: $REPO_DIR"
+        fi
+        git -C "$REPO_DIR" merge --ff-only "$canonical_ref"
+    else
+        # This checkout is dedicated to the updater, so converge tracked files
+        # to the canonical branch instead of inheriting local source drift.
+        git -C "$REPO_DIR" reset --hard "$canonical_ref"
+    fi
+
+    if [ ! -x "$REPO_DIR/contrib/user-local-install/install-user-local.sh" ]; then
+        fail "canonical checkout is missing the user-local installer: $REPO_DIR"
+    fi
+
+    SOURCE_NEW_HEAD="$(git -C "$REPO_DIR" rev-parse HEAD)"
+}
 
 write_install_env() {
     mkdir -p "$STATE_DIR"
     {
         printf 'REPO_DIR=%q\n' "$REPO_DIR"
+        printf 'SOURCE_REPO_DIR=%q\n' "$REPO_DIR"
+        printf 'MANAGED_REPO_DIR=%q\n' "$MANAGED_REPO_DIR"
+        printf 'REPO_ORIGIN_URL=%q\n' "$CANONICAL_REPO_URL"
+        printf 'REPO_DEFAULT_BRANCH=%q\n' "$CANONICAL_DEFAULT_BRANCH"
         printf 'OPT_ROOT=%q\n' "$OPT_ROOT"
         printf 'APP_DIR=%q\n' "$APP_DIR"
         printf 'DMG_FILE=%q\n' "$DMG_FILE"
@@ -201,32 +329,35 @@ restart_app_if_needed() {
     restart_after_update=0
 }
 
-old_head="$(git -C "$REPO_DIR" rev-parse HEAD)"
-git -C "$REPO_DIR" pull --ff-only
-new_head="$(git -C "$REPO_DIR" rev-parse HEAD)"
+main() {
+    local pid
 
-if [ -x "$REPO_DIR/contrib/user-local-install/install-user-local.sh" ]; then
+    prepare_source_repo
     "$REPO_DIR/contrib/user-local-install/install-user-local.sh" --from-update
+
+    write_install_env
+    patch_installed_common
+
+    restart_after_update=0
+    if running_app_pid >/dev/null; then
+        restart_after_update=1
+        stop_running_app
+        trap restart_app_if_needed EXIT
+    fi
+
+    if pid="$(running_app_pid)"; then
+        echo "Codex Desktop is still running from $APP_DIR (pid $pid); cannot update safely." >&2
+        exit 1
+    fi
+
+    if [ "$SOURCE_OLD_HEAD" != "$SOURCE_NEW_HEAD" ]; then
+        "$HOME/.local/bin/codex-desktop-update" --force
+        exit 0
+    fi
+
+    "$HOME/.local/bin/codex-desktop-update"
+}
+
+if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
+    main "$@"
 fi
-
-write_install_env
-patch_installed_common
-
-restart_after_update=0
-if running_app_pid >/dev/null; then
-    restart_after_update=1
-    stop_running_app
-    trap restart_app_if_needed EXIT
-fi
-
-if pid="$(running_app_pid)"; then
-    echo "Codex Desktop is still running from $APP_DIR (pid $pid); cannot update safely." >&2
-    exit 1
-fi
-
-if [ "$old_head" != "$new_head" ]; then
-    "$HOME/.local/bin/codex-desktop-update" --force
-    exit 0
-fi
-
-"$HOME/.local/bin/codex-desktop-update"
