@@ -82,7 +82,7 @@ apply_discord_runtime_fixes() {
     done
 }
 
-discord_flags="--ozone-platform=wayland --enable-features=UseOzonePlatform,WaylandWindowDecorations --ignore-gpu-blocklist --enable-gpu-rasterization --enable-zero-copy --disable-vulkan"
+discord_flags="--ozone-platform=wayland --disable-vulkan"
 
 if [ ! -x "$discord_host" ]; then
     mkdir -p "$config_home/$DIR"
@@ -257,8 +257,25 @@ done
 # Helper & CLI binaries need dedicated groups + setgid
 chgrp ${GID_ONEPASSWORD} /usr/lib/1Password/1Password-BrowserSupport
 chmod g+s               /usr/lib/1Password/1Password-BrowserSupport
-chgrp ${GID_ONEPASSWORD} /usr/lib/1Password/onepassword-mcp
-chmod g+s               /usr/lib/1Password/onepassword-mcp
+
+ONEPASSWORD_MCP_BIN=""
+for candidate in \
+  /usr/lib/1Password/1password-mcp \
+  /usr/lib/1Password/onepassword-mcp
+do
+  if [[ -x "${candidate}" ]]; then
+    ONEPASSWORD_MCP_BIN="${candidate}"
+    break
+  fi
+done
+
+if [[ -z "${ONEPASSWORD_MCP_BIN}" ]]; then
+  echo "1Password MCP executable not found at a supported path" >&2
+  exit 1
+fi
+
+chgrp ${GID_ONEPASSWORD} "${ONEPASSWORD_MCP_BIN}"
+chmod g+s               "${ONEPASSWORD_MCP_BIN}"
 
 chgrp ${GID_ONEPASSWORDCLI} /usr/bin/op
 chmod g+s                 /usr/bin/op
