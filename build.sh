@@ -83,7 +83,8 @@ apply_discord_runtime_fixes() {
     done
 }
 
-discord_flags="--ozone-platform=wayland --enable-features=UseOzonePlatform,WaylandWindowDecorations --ignore-gpu-blocklist --enable-gpu-rasterization --enable-zero-copy --disable-vulkan"
+# Native Wayland loses pointer input when Discord opens an image preview.
+discord_flags="--ozone-platform=x11 --disable-vulkan"
 
 mkdir -p "$discord_root"
 if [ ! -d "$discord_root" ]; then
