@@ -1,12 +1,25 @@
 #!/usr/bin/env node
-import { renameSync, rmSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import {
+    existsSync,
+    readFileSync,
+    renameSync,
+    rmSync,
+    statSync,
+    writeFileSync,
+} from "node:fs";
+import { dirname, join, resolve } from "node:path";
 
-const discordResources = "/usr/share/discord/resources";
+const discordResourcesArg = process.argv[2];
+if (!discordResourcesArg) {
+    throw new Error("Usage: patch-discord-vencord-asar.mjs /path/to/discord/resources [vencord-patcher]");
+}
+
+const discordResources = resolve(discordResourcesArg);
 const appAsar = join(discordResources, "app.asar");
 const originalAppAsar = join(discordResources, "_app.asar");
-const tempAppAsar = join(discordResources, "app.asar.tmp");
-const vencordPatcher = "/usr/share/vencord/patcher.js";
+const tempAppAsar = join(discordResources, ".app.asar.vencord.tmp");
+const vencordPatcher = resolve(process.argv[3] || "/usr/share/vencord/patcher.js");
+const vencordDist = dirname(vencordPatcher);
 
 const packageJson = `{
     "name": "discord",
@@ -46,19 +59,54 @@ function buildAsar(files) {
     return Buffer.concat([sizeHeader, headerBytes, padding, ...chunks]);
 }
 
-try {
-    renameSync(appAsar, originalAppAsar);
+for (const requiredPath of [
+    appAsar,
+    vencordPatcher,
+    join(vencordDist, "preload.js"),
+    join(vencordDist, "renderer.js"),
+    join(vencordDist, "renderer.css"),
+]) {
+    if (!existsSync(requiredPath)) {
+        throw new Error(`Required file is missing: ${requiredPath}`);
+    }
+}
 
-    const indexJs = `require(${JSON.stringify(vencordPatcher)});`;
-    writeFileSync(tempAppAsar, buildAsar({
-        "index.js": indexJs,
-        "package.json": packageJson
-    }));
+function isExpectedLoader(path) {
+    if (!existsSync(path) || statSync(path).size > 1024 * 1024) {
+        return false;
+    }
+
+    return readFileSync(path).includes(Buffer.from(vencordPatcher));
+}
+
+if (isExpectedLoader(appAsar) && existsSync(originalAppAsar)) {
+    process.exit(0);
+}
+
+const indexJs = `require(${JSON.stringify(vencordPatcher)});`;
+const loader = buildAsar({
+    "index.js": indexJs,
+    "package.json": packageJson
+});
+
+rmSync(tempAppAsar, { force: true });
+writeFileSync(tempAppAsar, loader, { mode: 0o644 });
+
+let movedOriginal = false;
+try {
+    if (!existsSync(originalAppAsar)) {
+        renameSync(appAsar, originalAppAsar);
+        movedOriginal = true;
+    }
+
     renameSync(tempAppAsar, appAsar);
 } catch (error) {
     rmSync(tempAppAsar, { force: true });
+    if (movedOriginal && !existsSync(appAsar) && existsSync(originalAppAsar)) {
+        renameSync(originalAppAsar, appAsar);
+    }
     throw new Error(`Failed to patch ${appAsar}: ${error.message}`);
 }
 
 console.log(`Patched ${appAsar} to load ${vencordPatcher}`);
-console.log(`Original Discord app archive moved to ${originalAppAsar}`);
+console.log(`Original Discord app archive is at ${originalAppAsar}`);
