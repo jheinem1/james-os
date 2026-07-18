@@ -83,7 +83,7 @@ apply_discord_runtime_fixes() {
     done
 }
 
-discord_flags="--ozone-platform=wayland --disable-vulkan"
+discord_flags="--ozone-platform=wayland --enable-features=UseOzonePlatform,WaylandWindowDecorations --ignore-gpu-blocklist --enable-gpu-rasterization --enable-zero-copy --disable-vulkan"
 
 mkdir -p "$discord_root"
 if [ ! -d "$discord_root" ]; then
