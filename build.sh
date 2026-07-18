@@ -67,13 +67,14 @@ DOWNLOAD=https://updates.discord.com/
 DIR=discord
 EXE=Discord
 BOOTSTRAP_SUFFIX=discord/updater_bootstrap
+VENCORD_PATCHER=/usr/local/bin/patch-discord-vencord-asar.mjs
 
 config_home=$XDG_CONFIG_HOME
 if [ -z "$config_home" ]; then
     config_home=$HOME/.config
 fi
 
-discord_host=$config_home/$DIR/$EXE
+discord_root=$config_home/$DIR
 
 apply_discord_runtime_fixes() {
     for voice_dir in "$config_home"/$DIR/[0-9]*.[0-9]*.[0-9]*/modules/discord_voice; do
@@ -84,37 +85,69 @@ apply_discord_runtime_fixes() {
 
 discord_flags="--ozone-platform=wayland --disable-vulkan"
 
-if [ ! -x "$discord_host" ]; then
-    mkdir -p "$config_home/$DIR"
-    if [ ! -d "$config_home/$DIR" ]; then
-        echo "Fatal error, failed to create $DIR in $config_home" >&2
-        exit 1
-    fi
-    if [ -t 1 ]; then
-        zenity=--no-zenity
-    else
-        zenity=--zenity
-    fi
-    bootstrap=/usr/share/$BOOTSTRAP_SUFFIX
-    if [ ! -x "$bootstrap" ]; then
-        bootstrap=/opt/$BOOTSTRAP_SUFFIX
-        if [ ! -x "$bootstrap" ]; then
-            bootstrap=`dirname -- "$0"`/updater_bootstrap
-        fi
-    fi
-    app_dir=`"$bootstrap" $zenity "$config_home/$DIR" $CHANNEL "$DOWNLOAD"`
+mkdir -p "$discord_root"
+if [ ! -d "$discord_root" ]; then
+    echo "Fatal error, failed to create $DIR in $config_home" >&2
+    exit 1
+fi
 
-    if [ $? -eq 0 ] ; then
-        echo "Bootstrap complete"
-        apply_discord_runtime_fixes
-        exec "$config_home/$DIR/$app_dir/$EXE" $discord_flags "$@"
-    else
-        echo "Bootstrap failed or was canceled"
-        exit 2
+if [ -t 1 ]; then
+    zenity=--no-zenity
+else
+    zenity=--zenity
+fi
+
+bootstrap=/usr/share/$BOOTSTRAP_SUFFIX
+if [ ! -x "$bootstrap" ]; then
+    bootstrap=/opt/$BOOTSTRAP_SUFFIX
+    if [ ! -x "$bootstrap" ]; then
+        bootstrap=`dirname -- "$0"`/updater_bootstrap
     fi
 fi
 
+if ! app_dir=`"$bootstrap" $zenity "$discord_root" $CHANNEL "$DOWNLOAD"`; then
+    echo "Discord bootstrap failed or was canceled" >&2
+    exit 2
+fi
+
+case "$app_dir" in
+    app-*)
+        app_version=${app_dir#app-}
+        case "$app_version" in
+            ""|*[!A-Za-z0-9._-]*)
+                echo "Discord bootstrap returned an invalid app directory: $app_dir" >&2
+                exit 2
+                ;;
+        esac
+        ;;
+    *)
+        echo "Discord bootstrap returned an invalid app directory: $app_dir" >&2
+        exit 2
+        ;;
+esac
+
+discord_app="$discord_root/$app_dir"
+discord_host="$discord_app/$EXE"
+if [ ! -x "$discord_host" ]; then
+    echo "Discord host is missing after bootstrap: $discord_host" >&2
+    exit 2
+fi
+
 apply_discord_runtime_fixes
+
+if [ -x "$VENCORD_PATCHER" ]; then
+    if command -v flock >/dev/null 2>&1; then
+        if ! flock -w 30 "$discord_root/.vencord-patch.lock" \
+            "$VENCORD_PATCHER" "$discord_app/resources"; then
+            echo "Warning: Vencord injection failed; launching vanilla Discord" >&2
+        fi
+    elif ! "$VENCORD_PATCHER" "$discord_app/resources"; then
+        echo "Warning: Vencord injection failed; launching vanilla Discord" >&2
+    fi
+else
+    echo "Warning: Vencord patch helper is missing: $VENCORD_PATCHER" >&2
+fi
+
 exec "$discord_host" $discord_flags "$@"
 EOF
 chmod 0755 /usr/bin/discord
@@ -143,42 +176,43 @@ rm -f \
 mkdir -p /usr/share/icons/hicolor/256x256/apps
 ln -sfn /usr/share/discord/discord.png /usr/share/icons/hicolor/256x256/apps/discord.png
 
-if [[ -f /usr/share/discord/resources/app.asar ]]; then
-  ###############################################################################
-  # Install Vencord into the image-level Discord tree with the KDE idle plugin
-  ###############################################################################
-  git clone --depth=1 --branch "${VENCORD_TAG}" https://github.com/Vendicated/Vencord.git /tmp/Vencord
-  git -C /tmp/Vencord checkout "${VENCORD_REF}"
-  mkdir -p /tmp/Vencord/src/plugins/kdeIdleSync.discordDesktop
-  cp /tmp/vencord-overlay/src/plugins/kdeIdleSync.discordDesktop/index.ts /tmp/Vencord/src/plugins/kdeIdleSync.discordDesktop/index.ts
-  cp /tmp/vencord-overlay/src/plugins/kdeIdleSync.discordDesktop/native.ts /tmp/Vencord/src/plugins/kdeIdleSync.discordDesktop/native.ts
-  export HOME=/tmp
-  export XDG_CONFIG_HOME=/tmp/.config
-  export XDG_DATA_HOME=/tmp/.local/share
-  export npm_config_cache=/tmp/npm-cache
-  export npm_config_prefix=/tmp/npm-global
-  npm install -g pnpm@10.4.1
-  export PATH="/tmp/npm-global/bin:${PATH}"
-  (
-    cd /tmp/Vencord
-    pnpm install --frozen-lockfile
-    pnpm build
-    install -Dm0644 dist/patcher.js /usr/share/vencord/patcher.js
-    install -Dm0644 dist/preload.js /usr/share/vencord/preload.js
-    install -Dm0644 dist/renderer.js /usr/share/vencord/renderer.js
-    install -Dm0644 dist/renderer.css /usr/share/vencord/renderer.css
-  )
+###############################################################################
+# Build Vencord with the KDE idle plugin for updater-managed Discord installs
+###############################################################################
+git clone --depth=1 --branch "${VENCORD_TAG}" https://github.com/Vendicated/Vencord.git /tmp/Vencord
+git -C /tmp/Vencord checkout "${VENCORD_REF}"
+mkdir -p /tmp/Vencord/src/plugins/kdeIdleSync.discordDesktop
+cp /tmp/vencord-overlay/src/plugins/kdeIdleSync.discordDesktop/index.ts /tmp/Vencord/src/plugins/kdeIdleSync.discordDesktop/index.ts
+cp /tmp/vencord-overlay/src/plugins/kdeIdleSync.discordDesktop/native.ts /tmp/Vencord/src/plugins/kdeIdleSync.discordDesktop/native.ts
+export HOME=/tmp
+export XDG_CONFIG_HOME=/tmp/.config
+export XDG_DATA_HOME=/tmp/.local/share
+export npm_config_cache=/tmp/npm-cache
+export npm_config_prefix=/tmp/npm-global
+npm install -g pnpm@10.4.1
+export PATH="/tmp/npm-global/bin:${PATH}"
+(
+  cd /tmp/Vencord
+  pnpm install --frozen-lockfile
+  pnpm build
+  install -Dm0644 dist/patcher.js /usr/share/vencord/patcher.js
+  install -Dm0644 dist/preload.js /usr/share/vencord/preload.js
+  install -Dm0644 dist/renderer.js /usr/share/vencord/renderer.js
+  install -Dm0644 dist/renderer.css /usr/share/vencord/renderer.css
+)
 
-  node /usr/local/bin/patch-discord-vencord-asar.mjs
+test -f /usr/share/vencord/patcher.js
+test -f /usr/share/vencord/preload.js
+test -f /usr/share/vencord/renderer.js
+test -f /usr/share/vencord/renderer.css
+
+if [[ -f /usr/share/discord/resources/app.asar ]]; then
+  node /usr/local/bin/patch-discord-vencord-asar.mjs /usr/share/discord/resources
   test -f /usr/share/discord/resources/_app.asar
   test -f /usr/share/discord/resources/app.asar
   grep -aqF '/usr/share/vencord/patcher.js' /usr/share/discord/resources/app.asar
-  test -f /usr/share/vencord/patcher.js
-  test -f /usr/share/vencord/preload.js
-  test -f /usr/share/vencord/renderer.js
-  test -f /usr/share/vencord/renderer.css
 else
-  echo "Discord package does not include resources/app.asar; skipping image-level Vencord patch"
+  echo "Discord package uses updater-managed app directories; Vencord will be injected at launch"
 fi
 
 # Enable the KDE idle sync watcher for all users by default.
