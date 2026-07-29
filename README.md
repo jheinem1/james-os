@@ -8,7 +8,7 @@ A [Fedora Atomic](https://fedoraproject.org/atomic-desktops) image built with [U
 - Preinstalls 1Password and the 1Password CLI.
 - Adds back Konsole as a terminal option and Yakuake to complement it (ptyxis remains the default for compatibility with some Bazzite features).
 - Launches the System Update shortcut in Konsole and includes a Topgrade custom step backed by a managed clone of the canonical `codex-desktop-linux` repository. Set `CODEX_DESKTOP_LINUX_REPO` to explicitly use a clean, non-diverged canonical checkout instead.
-- Preinstalls Piper for configuring mice.
+- Preinstalls the libratbag/ratbagd backend for configuring supported devices; graphical frontends such as Piper can be installed separately.
 - Preinstalls CoreCtrl for power management.
 - Adds an Open With action in Dolphin to encode videos for Discord using CPU H.264 with a target-size popup and progress bar.
 - Installs Discord from the official RPM at image build time, patches it with a pinned Vencord build when app resources are available, and includes a KDE idle/lock watcher that can drive Discord presence over a local socket.

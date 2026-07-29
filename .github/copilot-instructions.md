@@ -10,7 +10,7 @@ James OS is a custom Fedora Atomic Desktop image built using Universal Blue's to
 - Pre-installs 1Password and its CLI for password management
 - Pre-installs Visual Studio Code for development
 - Adds Konsole and Yakuake terminal emulators alongside ptyxis
-- Includes Piper for mouse configuration and CoreCtrl for power management
+- Includes the libratbag/ratbagd device-configuration backend and CoreCtrl for power management
 - Pre-installs Discord RPM
 
 ## Tech Stack
