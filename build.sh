@@ -36,10 +36,10 @@ dnf5 install -y \
   1password-cli \
   cargo \
   konsole \
+  libratbag-ratbagd \
   nodejs \
   npm \
   patch \
-  piper \
   yakuake \
   corectrl \
   kde-partitionmanager \
