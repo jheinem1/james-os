@@ -83,8 +83,8 @@ apply_discord_runtime_fixes() {
     done
 }
 
-# Native Wayland loses pointer input when Discord opens an image preview.
-discord_flags="--ozone-platform=x11 --disable-vulkan"
+# Keep native Wayland while avoiding Chromium's unstable color-management path.
+discord_flags="--ozone-platform=wayland --enable-features=WaylandWindowDecorations --disable-features=WaylandWpColorManagerV1 --disable-vulkan"
 
 mkdir -p "$discord_root"
 if [ ! -d "$discord_root" ]; then
