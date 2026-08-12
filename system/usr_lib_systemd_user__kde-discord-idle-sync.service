@@ -7,7 +7,7 @@ PartOf=graphical-session.target
 Type=simple
 EnvironmentFile=-/etc/vencord-kde-idle-sync.env
 EnvironmentFile=-%h/.config/vencord-kde-idle-sync.env
-ExecStart=/usr/local/bin/kde-discord-idle-sync.py
+ExecStart=/usr/bin/kde-discord-idle-sync.py
 Restart=always
 RestartSec=3
 
