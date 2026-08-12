@@ -6,7 +6,7 @@ import sys
 from pathlib import Path
 from shutil import which
 
-ENCODER = Path('/usr/local/bin/discord_encoder.py')
+ENCODER = Path('/usr/bin/discord_encoder.py')
 
 
 def run_kdialog_input() -> str | None:

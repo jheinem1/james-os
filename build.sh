@@ -11,6 +11,7 @@ CHATGPT_RPM_URL="https://persistent.oaistatic.com/codex-app-prod/linux/rpm/lates
 ###############################################################################
 mkdir -p /etc/yum.repos.d
 mkdir -p /var/opt               # /opt → /var/opt symlink target on Silverblue/Bazzite
+mkdir -p /var/usrlocal          # /usr/local → /var/usrlocal symlink target on Silverblue/Bazzite
 
 ###############################################################################
 # 1Password repo + GPG key
@@ -82,7 +83,7 @@ DOWNLOAD=https://updates.discord.com/
 DIR=discord
 EXE=Discord
 BOOTSTRAP_SUFFIX=discord/updater_bootstrap
-VENCORD_PATCHER=/usr/local/bin/patch-discord-vencord-asar.mjs
+VENCORD_PATCHER=/usr/bin/patch-discord-vencord-asar.mjs
 
 config_home=$XDG_CONFIG_HOME
 if [ -z "$config_home" ]; then
@@ -223,7 +224,7 @@ test -f /usr/share/vencord/renderer.js
 test -f /usr/share/vencord/renderer.css
 
 if [[ -f /usr/share/discord/resources/app.asar ]]; then
-  node /usr/local/bin/patch-discord-vencord-asar.mjs /usr/share/discord/resources
+  node /usr/bin/patch-discord-vencord-asar.mjs /usr/share/discord/resources
   test -f /usr/share/discord/resources/_app.asar
   test -f /usr/share/discord/resources/app.asar
   grep -aqF '/usr/share/vencord/patcher.js' /usr/share/discord/resources/app.asar
