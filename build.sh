@@ -4,6 +4,7 @@ set -euo pipefail
 VENCORD_REF="cba0eb9897419432e68277b0b60c301a6f8323cf"
 VENCORD_TAG="v1.14.6"
 DISCORD_RPM_URL="https://discord.com/api/download?platform=linux&format=rpm"
+CHATGPT_RPM_URL="https://persistent.oaistatic.com/codex-app-prod/linux/rpm/latest/chatgpt.x86_64.rpm"
 
 ###############################################################################
 # Directories that must exist during the RPM unpack phase
@@ -46,6 +47,16 @@ dnf5 install -y \
   plasma-oxygen \
   plasma-oxygen-qt6 \
   oxygen-icon-theme
+
+###############################################################################
+# Install OpenAI's official ChatGPT desktop app (including Work and Codex)
+###############################################################################
+curl -fL "${CHATGPT_RPM_URL}" -o /tmp/chatgpt.rpm
+dnf5 install -y /tmp/chatgpt.rpm
+rm -f /tmp/chatgpt.rpm
+rpm -q chatgpt
+test -x /usr/bin/chatgpt
+test -f /usr/share/applications/chatgpt.desktop
 
 ###############################################################################
 # Install Discord at image level (official RPM)
