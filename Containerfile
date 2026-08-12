@@ -11,7 +11,6 @@ COPY --chmod=0644 system/etc_ublue-os__topgrade.toml /etc/ublue-os/topgrade.toml
 COPY --chmod=0644 system/etc__vencord-kde-idle-sync.env /etc/vencord-kde-idle-sync.env
 COPY --chmod=0755 system/usr_local_bin__discord_encoder.py /usr/local/bin/discord_encoder.py
 COPY --chmod=0755 system/usr_local_bin__dolphin_discord_encode.py /usr/local/bin/dolphin_discord_encode.py
-COPY --chmod=0755 system/usr_local_bin__topgrade-codex-desktop-linux-update /usr/local/bin/topgrade-codex-desktop-linux-update
 COPY --chmod=0755 system/usr_local_bin__kvm-display-recover /usr/local/bin/kvm-display-recover
 COPY --chmod=0755 system/usr_local_bin__kde-discord-idle-sync.py /usr/local/bin/kde-discord-idle-sync.py
 COPY --chmod=0755 system/usr_local_bin__patch-discord-vencord-asar.mjs /usr/local/bin/patch-discord-vencord-asar.mjs
