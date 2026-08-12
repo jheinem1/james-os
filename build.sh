@@ -62,6 +62,10 @@ fi
 cat > /usr/bin/discord <<'EOF'
 #!/bin/sh
 
+# xdg-open needs this on Plasma 6 or it falls back to the removed kfmclient.
+export KDE_SESSION_VERSION="6"
+export KDE_FULL_SESSION="true"
+
 CHANNEL=stable
 DOWNLOAD=https://updates.discord.com/
 DIR=discord
