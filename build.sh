@@ -93,10 +93,41 @@ fi
 discord_root=$config_home/$DIR
 
 apply_discord_runtime_fixes() {
-    for voice_dir in "$config_home"/$DIR/[0-9]*.[0-9]*.[0-9]*/modules/discord_voice; do
+    for voice_dir in \
+        "$config_home"/$DIR/[0-9]*.[0-9]*.[0-9]*/modules/discord_voice \
+        "$discord_app"/modules/discord_voice-*/discord_voice; do
         [ -d "$voice_dir" ] || continue
         chmod u+x "$voice_dir/gpu_encoder_helper" "$voice_dir/discord_voice.node" 2>/dev/null || true
     done
+
+    # Discord 1.0.153's Linux MediaPipe capability crashes inside the official
+    # discord_voice libmediapipe.so and leaves the app renderer in a relaunch
+    # loop. Keep voice and native Wayland, but stop advertising only that
+    # optional background-effects capability for the affected host release.
+    case "$app_version" in
+        1.0.153)
+            for voice_index in "$discord_app"/modules/discord_voice-*/discord_voice/index.js; do
+                [ -f "$voice_index" ] || continue
+                mediapipe_linux_line="    || process.platform === 'linux'"
+                if grep -Fqx "$mediapipe_linux_line" "$voice_index"; then
+                    backup_dir="$discord_root/.james-os-backups/$app_version"
+                    backup_index="$backup_dir/discord_voice-index.js"
+                    if ! mkdir -p "$backup_dir"; then
+                        echo "Warning: failed to create Discord voice-module backup directory" >&2
+                        continue
+                    fi
+                    if [ ! -e "$backup_index" ] && ! cp -p "$voice_index" "$backup_index"; then
+                        echo "Warning: failed to back up Discord voice module" >&2
+                        continue
+                    fi
+                    if ! sed -i "/^    || process\\.platform === 'linux'\$/d" "$voice_index" \
+                        || grep -Fqx "$mediapipe_linux_line" "$voice_index"; then
+                        echo "Warning: failed to disable Discord 1.0.153 Linux MediaPipe" >&2
+                    fi
+                fi
+            done
+            ;;
+    esac
 }
 
 # Keep native Wayland while avoiding Chromium's unstable color-management path.
