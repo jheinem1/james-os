@@ -4,6 +4,9 @@ set -euo pipefail
 VENCORD_REF="cba0eb9897419432e68277b0b60c301a6f8323cf"
 VENCORD_TAG="v1.14.6"
 DISCORD_RPM_URL="https://discord.com/api/download?platform=linux&format=rpm"
+DISCORD_VOICE_COMPAT_URL="https://stable.dl2.discordapp.net/distro/app/stable/linux/x64/1.0.152/discord_voice/1/full.distro"
+DISCORD_VOICE_COMPAT_DISTRO_SHA256="8b9a003dfd5efc5303d04ea72176b15d6c42fd558104e444310c5668c524bf1b"
+DISCORD_VOICE_COMPAT_NODE_SHA256="b48ffe3faf4b106d6530153f01f9b1322a7df1dc4fc1d998c1d79ffe10830da7"
 CHATGPT_RPM_URL="https://persistent.oaistatic.com/codex-app-prod/linux/rpm/latest/chatgpt.x86_64.rpm"
 
 ###############################################################################
@@ -36,6 +39,7 @@ dnf5 makecache -y
 dnf5 install -y \
   1password \
   1password-cli \
+  brotli \
   cargo \
   konsole \
   libratbag-ratbagd \
@@ -71,6 +75,27 @@ else
   echo "Discord executable not found after installing official RPM" >&2
   exit 1
 fi
+
+# Discord 1.0.153's updated discord_voice.node crashes in its MediaPipe path.
+# Keep Discord's official 1.0.152 voice binary in the image for the narrowly
+# version-scoped runtime rollback below. The 1.0.153 delta metadata identifies
+# these hashes as the exact predecessor payload.
+discord_voice_compat_root=/usr/share/james-os/discord-compat/1.0.153
+discord_voice_compat_distro=/tmp/discord-voice-1.0.152.full.distro
+discord_voice_compat_tar=/tmp/discord-voice-1.0.152.tar
+discord_voice_compat_extract=/tmp/discord-voice-1.0.152
+curl -fL "${DISCORD_VOICE_COMPAT_URL}" -o "${discord_voice_compat_distro}"
+echo "${DISCORD_VOICE_COMPAT_DISTRO_SHA256}  ${discord_voice_compat_distro}" | sha256sum -c -
+brotli --decompress --force "${discord_voice_compat_distro}" --output="${discord_voice_compat_tar}"
+mkdir -p "${discord_voice_compat_extract}"
+tar -xf "${discord_voice_compat_tar}" -C "${discord_voice_compat_extract}" files/discord_voice.node
+echo "${DISCORD_VOICE_COMPAT_NODE_SHA256}  ${discord_voice_compat_extract}/files/discord_voice.node" | sha256sum -c -
+mkdir -p "${discord_voice_compat_root}"
+install -m 0755 "${discord_voice_compat_extract}/files/discord_voice.node" \
+  "${discord_voice_compat_root}/discord_voice.node"
+rm -f "${discord_voice_compat_distro}" "${discord_voice_compat_tar}"
+rm -rf "${discord_voice_compat_extract}"
+
 cat > /usr/bin/discord <<'EOF'
 #!/bin/sh
 
@@ -84,6 +109,9 @@ DIR=discord
 EXE=Discord
 BOOTSTRAP_SUFFIX=discord/updater_bootstrap
 VENCORD_PATCHER=/usr/bin/patch-discord-vencord-asar.mjs
+VOICE_COMPAT_1_0_153=/usr/share/james-os/discord-compat/1.0.153/discord_voice.node
+VOICE_BROKEN_1_0_153_SHA256=de18a15d0da9136c5ead9244d3bbc8194885c84f1b0818034e0057899505dcd0
+VOICE_COMPAT_1_0_153_SHA256=b48ffe3faf4b106d6530153f01f9b1322a7df1dc4fc1d998c1d79ffe10830da7
 
 config_home=$XDG_CONFIG_HOME
 if [ -z "$config_home" ]; then
@@ -93,10 +121,80 @@ fi
 discord_root=$config_home/$DIR
 
 apply_discord_runtime_fixes() {
-    for voice_dir in "$config_home"/$DIR/[0-9]*.[0-9]*.[0-9]*/modules/discord_voice; do
+    for voice_dir in \
+        "$config_home"/$DIR/[0-9]*.[0-9]*.[0-9]*/modules/discord_voice \
+        "$discord_app"/modules/discord_voice-*/discord_voice; do
         [ -d "$voice_dir" ] || continue
         chmod u+x "$voice_dir/gpu_encoder_helper" "$voice_dir/discord_voice.node" 2>/dev/null || true
+
+        case "$app_version" in
+            1.0.153)
+                voice_node="$voice_dir/discord_voice.node"
+                [ -f "$voice_node" ] || continue
+                voice_hash=`sha256sum "$voice_node" 2>/dev/null` || voice_hash=
+                voice_hash=${voice_hash%% *}
+                case "$voice_hash" in
+                    "$VOICE_BROKEN_1_0_153_SHA256")
+                        compat_hash=`sha256sum "$VOICE_COMPAT_1_0_153" 2>/dev/null` || compat_hash=
+                        compat_hash=${compat_hash%% *}
+                        if [ "$compat_hash" != "$VOICE_COMPAT_1_0_153_SHA256" ]; then
+                            echo "Warning: Discord 1.0.153 voice compatibility payload is missing or invalid" >&2
+                            continue
+                        fi
+                        backup_dir="$discord_root/.james-os-backups/$app_version"
+                        backup_voice="$backup_dir/discord_voice.node"
+                        if ! mkdir -p "$backup_dir"; then
+                            echo "Warning: failed to create Discord voice-module backup directory" >&2
+                            continue
+                        fi
+                        if [ ! -e "$backup_voice" ] && ! cp -p "$voice_node" "$backup_voice"; then
+                            echo "Warning: failed to back up Discord voice binary" >&2
+                            continue
+                        fi
+                        rollback_tmp="$voice_dir/.discord_voice.node.james-os-$$"
+                        if ! cp "$VOICE_COMPAT_1_0_153" "$rollback_tmp" \
+                            || ! chmod u+x "$rollback_tmp" \
+                            || ! mv -f "$rollback_tmp" "$voice_node"; then
+                            rm -f "$rollback_tmp"
+                            echo "Warning: failed to roll back Discord 1.0.153 voice binary" >&2
+                        fi
+                        ;;
+                    "$VOICE_COMPAT_1_0_153_SHA256")
+                        ;;
+                    *)
+                        echo "Warning: refusing to replace an unknown Discord 1.0.153 voice binary" >&2
+                        ;;
+                esac
+                ;;
+        esac
     done
+
+    # Keep the affected host from advertising the optional background-effects
+    # capability in addition to rolling back its crashing native voice binary.
+    case "$app_version" in
+        1.0.153)
+            for voice_index in "$discord_app"/modules/discord_voice-*/discord_voice/index.js; do
+                [ -f "$voice_index" ] || continue
+                mediapipe_linux_line="    || process.platform === 'linux'"
+                if grep -Fqx "$mediapipe_linux_line" "$voice_index"; then
+                    backup_dir="$discord_root/.james-os-backups/$app_version"
+                    backup_index="$backup_dir/discord_voice-index.js"
+                    if ! mkdir -p "$backup_dir"; then
+                        echo "Warning: failed to create Discord voice-module backup directory" >&2
+                        continue
+                    fi
+                    if [ ! -e "$backup_index" ] && ! cp -p "$voice_index" "$backup_index"; then
+                        echo "Warning: failed to back up Discord voice module" >&2
+                        continue
+                    fi
+                    if ! sed -i "/^    || process\\.platform === 'linux'\$/d" "$voice_index" \
+                        || grep -Fqx "$mediapipe_linux_line" "$voice_index"; then
+                        echo "Warning: failed to disable Discord 1.0.153 Linux MediaPipe" >&2
+                    fi
+                fi
+            done
+            ;;
+    esac
 }
 
 # Keep native Wayland while avoiding Chromium's unstable color-management path.
