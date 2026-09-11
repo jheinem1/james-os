@@ -8,6 +8,9 @@ DISCORD_VOICE_COMPAT_URL="https://stable.dl2.discordapp.net/distro/app/stable/li
 DISCORD_VOICE_COMPAT_DISTRO_SHA256="8b9a003dfd5efc5303d04ea72176b15d6c42fd558104e444310c5668c524bf1b"
 DISCORD_VOICE_COMPAT_NODE_SHA256="b48ffe3faf4b106d6530153f01f9b1322a7df1dc4fc1d998c1d79ffe10830da7"
 CHATGPT_RPM_URL="https://persistent.oaistatic.com/codex-app-prod/linux/rpm/latest/chatgpt.x86_64.rpm"
+# 26.908.31748 can fail to load AppRoutes with "n is not a function", even
+# with a clean profile. Keep daily upstream updates, but reject older payloads.
+CHATGPT_MIN_VERSION="26.908.40834"
 
 ###############################################################################
 # Directories that must exist during the RPM unpack phase
@@ -57,6 +60,11 @@ dnf5 install -y \
 # Install OpenAI's official ChatGPT desktop app (including Work and Codex)
 ###############################################################################
 curl -fL "${CHATGPT_RPM_URL}" -o /tmp/chatgpt.rpm
+CHATGPT_VERSION=$(rpm -qp --queryformat '%{VERSION}' /tmp/chatgpt.rpm)
+if ! printf '%s\n' "${CHATGPT_MIN_VERSION}" "${CHATGPT_VERSION}" | sort -V -C; then
+  echo "ChatGPT ${CHATGPT_VERSION} is below the startup-fix minimum ${CHATGPT_MIN_VERSION}" >&2
+  exit 1
+fi
 dnf5 install -y /tmp/chatgpt.rpm
 rm -f /tmp/chatgpt.rpm
 rpm -q chatgpt
