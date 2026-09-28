@@ -5,6 +5,7 @@ COPY vencord-overlay /tmp/vencord-overlay
 ENV GNUPGHOME=/var/tmp/gnupg
 
 # Copy in baked config files
+COPY --chmod=0755 system/usr_bin__james-os-install-kwin-mcp /usr/bin/james-os-install-kwin-mcp
 COPY --chmod=0644 system/etc__hostname /etc/hostname
 COPY --chmod=0644 system/etc__kvm-display-recover.env /etc/kvm-display-recover.env
 COPY --chmod=0644 system/etc_ublue-os__topgrade.toml /etc/ublue-os/topgrade.toml
