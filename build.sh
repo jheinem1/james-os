@@ -44,6 +44,14 @@ dnf5 install -y \
   1password-cli \
   brotli \
   cargo \
+  uv \
+  python3-devel \
+  gcc \
+  pkgconf-pkg-config \
+  cairo-devel \
+  gobject-introspection-devel \
+  dbus-devel \
+  libei \
   konsole \
   libratbag-ratbagd \
   nodejs \

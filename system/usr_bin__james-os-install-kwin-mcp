@@ -1,0 +1,49 @@
+#!/usr/bin/env bash
+# Install the pinned KWin MCP release for the invoking user; never reboot or restart apps.
+set -euo pipefail
+
+repository=jheinem1/kwin-mcp-mcp2
+version=0.7.1+mcp2
+tag=v0.7.1-mcp2
+wheel=kwin_mcp-0.7.1+mcp2-py3-none-any.whl
+sha256=53977c7a76a661e50a59d63d18a9f54671903d034a3f48f825fee3207e713d47
+
+if [[ "${1:-}" == --version ]]; then
+  printf '%s (%s)\n' "$version" "$repository"
+  exit 0
+fi
+if (( $# )); then
+  echo "Usage: james-os-install-kwin-mcp [--version]" >&2
+  exit 2
+fi
+if (( EUID == 0 )); then
+  echo 'Run as your desktop user, without sudo.' >&2
+  exit 1
+fi
+for command_name in uv curl sha256sum tar flock; do
+  command -v "$command_name" >/dev/null || { echo "Missing dependency: $command_name" >&2; exit 1; }
+done
+state_root="${XDG_STATE_HOME:-$HOME/.local/state}/james-os/kwin-mcp"
+mkdir -p "$state_root"
+exec 9>"$state_root/install.lock"
+flock -n 9 || { echo 'Another KWin MCP installation is running.' >&2; exit 1; }
+work_dir=$(mktemp -d)
+trap 'rm -rf "$work_dir"' EXIT
+curl --fail --location --retry 3 --proto '=https' --proto-redir '=https' \
+  "https://github.com/$repository/releases/download/$tag/$wheel" -o "$work_dir/$wheel"
+printf '%s  %s\n' "$sha256" "$work_dir/$wheel" | sha256sum --check --status
+
+tool_root=$(uv tool dir)
+python_path=/usr/bin/python3
+if [[ -x "$tool_root/kwin-mcp/bin/python" ]]; then
+  python_path=$("$tool_root/kwin-mcp/bin/python" -c 'import sys; print(sys._base_executable)')
+  backup="$state_root/before-$tag-$(date -u +%Y%m%dT%H%M%SZ)-$$.tar.gz"
+  tar -czf "$backup" -C "$tool_root" kwin-mcp
+  printf 'Saved previous tool environment: %s\n' "$backup"
+fi
+uv tool install --force --python "$python_path" --reinstall-package kwin-mcp "$work_dir/$wheel"
+"$tool_root/kwin-mcp/bin/python" -c \
+  'from importlib.metadata import version; import sys; assert version("kwin-mcp") == sys.argv[1]; from kwin_mcp.core import AutomationEngine; assert hasattr(AutomationEngine, "mouse_move_relative")' \
+  "$version"
+printf 'Installed KWin MCP %s at %s/kwin-mcp\n' "$version" "$(uv tool dir --bin)"
+printf 'Reconnect your MCP client to load the new tools. No desktop restart or reboot was performed.\n'
