@@ -79,6 +79,16 @@ rpm -q chatgpt
 test -x /usr/bin/chatgpt
 test -f /usr/share/applications/chatgpt.desktop
 
+# Browser Use's TOML reader rejects symlink ancestors. Bazzite's /home is
+# /var/home, so pass the canonical state root to the app and its helpers.
+cat > /usr/lib/chatgpt/codex-launcher <<'EOF'
+#!/bin/sh
+codex_state_home=$(realpath -m -- "${CODEX_HOME:-${HOME}/.codex}") || exit 1
+export CODEX_HOME="$codex_state_home"
+exec "$(dirname "$(readlink -f "$0")")/ChatGPT" "$@"
+EOF
+chmod 0755 /usr/lib/chatgpt/codex-launcher
+
 ###############################################################################
 # Install Discord at image level (official RPM)
 ###############################################################################

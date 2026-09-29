@@ -33,6 +33,19 @@ I'm not actively seeking contributions, but if you want to help out, feel free t
 - 'build.sh': The main script ran to configure the image from the Containerfile.
 - 'Justfile': This file contains the "ujust" commands available in the image (there are currently none other than the ones inherited by Bazzite and a template).
 
+## ChatGPT browser permissions on Atomic desktops
+
+The image launcher resolves `CODEX_HOME` to its canonical path before starting
+ChatGPT and Codex. This avoids Browser Use's configuration reader rejecting
+Bazzite's `/home` symlink when it loads saved website permissions. The default
+remains the existing `~/.codex` directory; configuration and history stay in place.
+
+If an existing MCP configuration explicitly sets
+`mcp_servers.node_repl.env.CODEX_HOME`, use the canonical path there too (for
+example `/var/home/<user>/.codex` on Bazzite). An explicit MCP environment override
+takes precedence over the launcher environment. Reconnect the helper after
+changing that override. This fix preserves browser permission enforcement.
+
 ## KWin MCP user installation
 
 Run `james-os-install-kwin-mcp` as your desktop user (without sudo) to install
