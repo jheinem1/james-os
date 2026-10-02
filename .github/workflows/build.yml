@@ -38,9 +38,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v4
 
-      - name: Check ChatGPT launcher
+      - name: Check image helpers
         run: |
           bash -n build.sh
+          bash -n system/usr_bin__james-os-brew
           python3 -m unittest discover -s tests -v
 
       # This is required for large images like bazzite-dx to prevent "no space left on device" errors

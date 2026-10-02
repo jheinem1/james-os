@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# uupd uses pkexec, which resolves a directly invoked brew symlink. Keep this
+# wrapper a regular file so Homebrew receives its original prefix entrypoint.
+exec /home/linuxbrew/.linuxbrew/bin/brew "$@"
