@@ -8,6 +8,7 @@ A [Fedora Atomic](https://fedoraproject.org/atomic-desktops) image built with [U
 - Preinstalls 1Password and the 1Password CLI.
 - Adds back Konsole as a terminal option and Yakuake to complement it (ptyxis remains the default for compatibility with some Bazzite features).
 - Launches the System Update shortcut in Konsole and preinstalls OpenAI's official ChatGPT desktop app, including ChatGPT Work and Codex.
+- Keeps Homebrew formula upgrades working in both automatic and manual System Update runs by preserving Homebrew's prefix entrypoint through uupd's user switch.
 - Preinstalls the libratbag/ratbagd backend for configuring supported devices; graphical frontends such as Piper can be installed separately.
 - Preinstalls CoreCtrl for power management.
 - Adds an Open With action in Dolphin to encode videos for Discord using CPU H.264 with a target-size popup and progress bar.
