@@ -6,6 +6,10 @@ ENV GNUPGHOME=/var/tmp/gnupg
 
 # Copy in baked config files
 COPY --chmod=0755 system/usr_bin__james-os-brew /usr/bin/james-os-brew
+COPY --chmod=0755 system/usr_bin__james-os-update-chatgpt /usr/bin/james-os-update-chatgpt
+COPY --chmod=0755 system/usr_bin__james-os-check-staged-update /usr/bin/james-os-check-staged-update
+COPY --chmod=0644 system/usr_lib_systemd_system_uupd.service.d__30-desktop-update.conf /usr/lib/systemd/system/uupd.service.d/30-desktop-update.conf
+COPY --chmod=0644 system/usr_lib_systemd_system_uupd-manual.service.d__30-desktop-update.conf /usr/lib/systemd/system/uupd-manual.service.d/30-desktop-update.conf
 COPY --chmod=0644 system/usr_lib_systemd_system_uupd.service.d__20-homebrew-path.conf /usr/lib/systemd/system/uupd.service.d/20-homebrew-path.conf
 COPY --chmod=0644 system/usr_lib_systemd_system_uupd-manual.service.d__20-homebrew-path.conf /usr/lib/systemd/system/uupd-manual.service.d/20-homebrew-path.conf
 COPY --chmod=0755 system/usr_bin__james-os-install-kwin-mcp /usr/bin/james-os-install-kwin-mcp

@@ -36,6 +36,21 @@ I'm not actively seeking contributions, but if you want to help out, feel free t
 
 ## ChatGPT browser permissions on Atomic desktops
 
+Automatic and manual System Update runs also update the installed ChatGPT/Codex
+desktop RPM in the current boot. Image downloads alone stage a deployment for
+the next reboot; they do not update the currently running desktop package.
+The live updater verifies OpenAI's package signature, refuses downgrades, and
+uses a temporary OSTree `/usr` overlay without creating a persistent RPM override.
+It preserves the canonical `CODEX_HOME` launcher and leaves running app sessions
+open. Quit and reopen the app to use its new version.
+
+Run `sudo james-os-update-chatgpt` for an app-only update. The overlay is discarded
+at reboot, so also complete System Update for the next boot's image. The updater
+checks that OSTree's shutdown finalization services are active when an image is
+staged and explicitly reports the reboot requirement. A forced shutdown or a
+full disk can still prevent the staged image from becoming bootable; the live
+app update makes desktop upgrades independent of that activation step.
+
 The image launcher resolves `CODEX_HOME` to its canonical path before starting
 ChatGPT and Codex. This avoids Browser Use's configuration reader rejecting
 Bazzite's `/home` symlink when it loads saved website permissions. The default

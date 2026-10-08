@@ -42,6 +42,8 @@ jobs:
         run: |
           bash -n build.sh
           bash -n system/usr_bin__james-os-brew
+          bash -n system/usr_bin__james-os-update-chatgpt
+          bash -n system/usr_bin__james-os-check-staged-update
           python3 -m unittest discover -s tests -v
 
       # This is required for large images like bazzite-dx to prevent "no space left on device" errors
