@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+set -euo pipefail
+export PATH=/usr/sbin:/usr/bin:/sbin:/bin
+
+[[ -e /run/ostree-booted ]] || exit 0
+staged=$(rpm-ostree status --json | python3 -c \
+  'import json,sys; print(sum(bool(d.get("staged")) for d in json.load(sys.stdin)["deployments"]))')
+if [[ "$staged" == 0 ]]; then
+  echo 'No staged system deployment; the current image remains active.'
+  exit 0
+fi
+
+# Keep /etc merging at shutdown, but verify that the service responsible for
+# making the staged image bootable is armed before reporting update success.
+systemctl start ostree-finalize-staged.service
+systemctl is-active --quiet ostree-finalize-staged.service
+systemctl is-active --quiet ostree-finalize-staged-hold.service
+echo 'System image staged; normal shutdown must finalize it before the next boot.'
+echo 'The booted image stays active until reboot. Avoid a forced power-off.'

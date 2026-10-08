@@ -1,0 +1,79 @@
+#!/usr/bin/env bash
+set -euo pipefail
+export PATH=/usr/sbin:/usr/bin:/sbin:/bin
+
+# The image update is staged for the next boot. Update the official desktop
+# package in the current boot too, without pinning an RPM override or restarting
+# anyone's app. The temporary /usr overlay is discarded on reboot.
+if [[ ${EUID} -ne 0 ]]; then
+  echo 'Run with sudo or pkexec: james-os-update-chatgpt' >&2
+  exit 1
+fi
+exec 9>/run/james-os-update-chatgpt.lock
+flock -n 9 || exit 0
+
+arch=$(uname -m)
+case "$arch" in x86_64|aarch64) ;; *) echo "Unsupported architecture: $arch" >&2; exit 1 ;; esac
+installed=$(rpm -q --queryformat '%{VERSION}' chatgpt)
+work=$(mktemp -d /var/tmp/james-os-chatgpt.XXXXXXXX)
+trap 'rm -rf -- "$work"' EXIT
+curl --proto '=https' --tlsv1.2 --fail --location --retry 3 \
+  "https://persistent.oaistatic.com/codex-app-prod/linux/rpm/latest/chatgpt.${arch}.rpm" \
+  -o "$work/chatgpt.rpm"
+
+# Enroll the key in a disposable database, not in the system RPM database.
+mkdir "$work/keydb"
+rpmkeys --dbpath "$work/keydb" --import \
+  /etc/pki/rpm-gpg/RPM-GPG-KEY-chatgpt-3BFA0E4AE8B8CC16A2D9BA684A3B4A566C4660E4.asc
+signature=$(LC_ALL=C rpmkeys --dbpath "$work/keydb" --checksig "$work/chatgpt.rpm")
+printf '%s\n' "$signature"
+[[ "$signature" == *': digests signatures OK' ]] || { echo 'OpenAI package signature verification failed' >&2; exit 1; }
+identity=$(rpm -qp --queryformat '%{NAME} %{ARCH}' "$work/chatgpt.rpm")
+[[ "$identity" == "chatgpt $arch" ]] || { echo "Unexpected package: $identity" >&2; exit 1; }
+available=$(rpm -qp --queryformat '%{VERSION}' "$work/chatgpt.rpm")
+[[ "$available" =~ ^[0-9]+([.][0-9]+)+$ ]] || { echo 'Invalid package version' >&2; exit 1; }
+if [[ "$installed" == "$available" ]]; then
+  echo "ChatGPT/Codex Desktop $installed is current."
+  exit 0
+fi
+if ! printf '%s\n' "$installed" "$available" | sort -V -C; then
+  echo "Keeping newer installed ChatGPT $installed (download is $available)."
+  exit 0
+fi
+
+# Avoid repeating the disk-full failure that can also prevent OSTree's
+# shutdown finalization. The compressed download already occupies its space.
+unpacked=$(rpm -qp --queryformat '%{SIZE}' "$work/chatgpt.rpm")
+free=$(df --output=avail -B1 "$work" | tail -n 1 | tr -d ' ')
+[[ "$unpacked" =~ ^[0-9]+$ && "$free" =~ ^[0-9]+$ ]] || { echo 'Cannot determine update space requirement' >&2; exit 1; }
+if (( free < unpacked + 1073741824 )); then
+  echo 'Insufficient disk space for ChatGPT update plus 1 GiB reserve; keeping installed package.' >&2
+  exit 1
+fi
+
+if [[ -e /run/ostree-booted ]]; then
+  unlocked=$(rpm-ostree status --json | python3 -c \
+    'import json,sys; print(next(d.get("unlocked", "none") for d in json.load(sys.stdin)["deployments"] if d.get("booted")))')
+  case "$unlocked" in
+    none) rpm-ostree usroverlay ;;
+    development) ;;
+    *) echo "Refusing unexpected OSTree unlock mode: $unlocked" >&2; exit 1 ;;
+  esac
+fi
+rpm -Uvh "$work/chatgpt.rpm"
+
+# RPM upgrades replace the launcher; retain the image's canonical CODEX_HOME fix.
+cat > /usr/lib/chatgpt/codex-launcher <<'EOF'
+#!/bin/sh
+codex_state_home=$(realpath -m -- "${CODEX_HOME:-${HOME}/.codex}") || exit 1
+export CODEX_HOME="$codex_state_home"
+exec "$(dirname "$(readlink -f "$0")")/ChatGPT" "$@"
+EOF
+chmod 0755 /usr/lib/chatgpt/codex-launcher
+actual=$(rpm -q --queryformat '%{VERSION}' chatgpt)
+[[ "$actual" == "$available" ]] || { echo "Installed version mismatch: $actual" >&2; exit 1; }
+echo "Updated ChatGPT/Codex Desktop $installed -> $actual in the current boot."
+echo 'Running app sessions use the new version after quitting and reopening.'
+if [[ -e /run/ostree-booted ]]; then
+  echo 'The live overlay lasts until reboot; the system image update supplies the next boot.'
+fi
