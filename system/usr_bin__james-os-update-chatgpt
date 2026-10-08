@@ -41,6 +41,16 @@ if ! printf '%s\n' "$installed" "$available" | sort -V -C; then
   exit 0
 fi
 
+# Avoid repeating the disk-full failure that can also prevent OSTree's
+# shutdown finalization. The compressed download already occupies its space.
+unpacked=$(rpm -qp --queryformat '%{SIZE}' "$work/chatgpt.rpm")
+free=$(df --output=avail -B1 "$work" | tail -n 1 | tr -d ' ')
+[[ "$unpacked" =~ ^[0-9]+$ && "$free" =~ ^[0-9]+$ ]] || { echo 'Cannot determine update space requirement' >&2; exit 1; }
+if (( free < unpacked + 1073741824 )); then
+  echo 'Insufficient disk space for ChatGPT update plus 1 GiB reserve; keeping installed package.' >&2
+  exit 1
+fi
+
 if [[ -e /run/ostree-booted ]]; then
   unlocked=$(rpm-ostree status --json | python3 -c \
     'import json,sys; print(next(d.get("unlocked", "none") for d in json.load(sys.stdin)["deployments"] if d.get("booted")))')

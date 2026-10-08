@@ -42,7 +42,8 @@ elif cmd == 'rpm':
         if os.environ.get('INSTALL_FAIL'): sys.exit(7)
         (root / 'installed').write_text(os.environ['AVAILABLE'])
     elif '-qp' in args:
-        print(os.environ.get('IDENTITY', 'chatgpt x86_64') if '%{NAME}' in args[args.index('--queryformat') + 1] else os.environ['AVAILABLE'], end='')
+        fmt = args[args.index('--queryformat') + 1]
+        print(os.environ.get('IDENTITY', 'chatgpt x86_64') if '%{NAME}' in fmt else '1600000000' if fmt == '%{SIZE}' else os.environ['AVAILABLE'], end='')
     else:
         print((root / 'installed').read_text(), end='')
 elif cmd == 'rpm-ostree':
@@ -50,9 +51,12 @@ elif cmd == 'rpm-ostree':
         print(json.dumps({'deployments': [{'booted': True, 'unlocked': os.environ['UNLOCKED']}, {'staged': os.environ['STAGED'] == '1'}]}))
 elif cmd == 'systemctl':
     if os.environ.get('SERVICE_FAIL'): sys.exit(1)
+elif cmd == 'df':
+    print('Avail')
+    print(os.environ.get('FREE_BYTES', '10000000000'))
 ''')
         probe.chmod(0o755)
-        for name in ('curl', 'rpmkeys', 'rpm', 'rpm-ostree', 'systemctl'):
+        for name in ('curl', 'rpmkeys', 'rpm', 'rpm-ostree', 'systemctl', 'df'):
             (self.bin / name).symlink_to(probe)
         self.marker = self.root / 'ostree-booted'
         self.marker.touch()
@@ -111,6 +115,12 @@ elif cmd == 'systemctl':
     def test_existing_overlay_is_reused(self):
         self.assertEqual(self.invoke(UNLOCKED='development').returncode, 0)
         self.assertFalse(any(c == 'rpm-ostree' and 'usroverlay' in a for c, a in self.calls()))
+
+    def test_low_space_never_unlocks_or_installs(self):
+        result = self.invoke(FREE_BYTES='2000000000')
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('Insufficient disk space', result.stderr)
+        self.assertEqual(self.mutations(), [])
 
     def test_unexpected_unlock_mode_is_rejected(self):
         self.assertNotEqual(self.invoke(UNLOCKED='hotfix').returncode, 0)
