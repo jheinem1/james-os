@@ -1,0 +1,147 @@
+From b34f31076638de4d1880668ea42c59a64159c6f5 Mon Sep 17 00:00:00 2001
+From: James Hein <jheinem1@users.noreply.github.com>
+Date: Sun, 11 Oct 2026 21:15:48 -0700
+Subject: [PATCH 1/2] Preserve installed G600 Normal and G-Shift layers
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Recovered from the existing custom Piper Flatpak; retains button indices 0–19 and 21–40.
+
+Co-Authored-By: Codex <codex@openai.com>
+---
+ piper/buttonspage.py | 62 ++++++++++++++++++++++++++++++++++++++++++--
+ piper/g600.py        | 17 ++++++++++++
+ 2 files changed, 77 insertions(+), 2 deletions(-)
+ create mode 100644 piper/g600.py
+
+diff --git a/piper/buttonspage.py b/piper/buttonspage.py
+index 53aa444..51a6992 100644
+--- a/piper/buttonspage.py
++++ b/piper/buttonspage.py
+@@ -4,6 +4,7 @@ from gettext import gettext as _
+ from typing import Optional
+ 
+ from .buttondialog import ButtonDialog
++from .g600 import MODEL_PREFIX, SHIFT_OFFSET, button_layer
+ from .mousemap import MouseMap
+ from .optionbutton import OptionButton
+ from .ratbagd import (
+@@ -37,12 +38,27 @@ class ButtonsPage(Gtk.Box):
+ 
+         self._device = ratbagd_device
+         self._profile = profile
++        self._is_g600 = self._device.model.startswith(MODEL_PREFIX)
++        self._g600_layer_widgets = {False: [], True: []}
++        self._button_display_indices = {}
+ 
++        self.set_orientation(Gtk.Orientation.VERTICAL)
++        if self._is_g600:
++            self._add_g600_layer_selector()
+         self._mousemap = MouseMap("#Buttons", self._device, spacing=20, border_width=20)
+         self.pack_start(self._mousemap, True, True, 0)
+         self._sizegroup = Gtk.SizeGroup(mode=Gtk.SizeGroupMode.HORIZONTAL)
+ 
+         for ratbagd_button in profile.buttons:
++            if self._is_g600:
++                layer = button_layer(ratbagd_button.index)
++                if layer is None:
++                    continue
++                is_shifted, display_index = layer
++            else:
++                is_shifted = False
++                display_index = ratbagd_button.index
++
+             button = OptionButton()
+             # Set the correct label in the option button.
+             self._on_button_mapping_changed(ratbagd_button, None, button)
+@@ -82,10 +98,45 @@ class ButtonsPage(Gtk.Box):
+                 self._on_button_mapping_changed,
+                 button,
+             )
+-            self._mousemap.add(button, f"#button{ratbagd_button.index}")
++            self._mousemap.add(button, f"#button{display_index}")
+             self._sizegroup.add_widget(button)
++            self._button_display_indices[ratbagd_button.index] = display_index
++            if self._is_g600:
++                self._g600_layer_widgets[is_shifted].append(button)
+ 
+         self.show_all()
++        if self._is_g600:
++            self._show_g600_layer(False)
++
++    def _add_g600_layer_selector(self) -> None:
++        selector = Gtk.Box(
++            orientation=Gtk.Orientation.HORIZONTAL,
++            spacing=8,
++            halign=Gtk.Align.CENTER,
++            margin_top=12,
++        )
++        selector.pack_start(Gtk.Label(label=_("Button layer:")), False, False, 0)
++
++        normal = Gtk.RadioButton.new_with_label_from_widget(None, _("Normal"))
++        shifted = Gtk.RadioButton.new_with_label_from_widget(normal, _("G-Shift"))
++        normal.set_active(True)
++        shifted.set_tooltip_text(
++            _("Configure the actions used while the G-Shift button is held")
++        )
++        shifted.connect("toggled", self._on_g600_layer_toggled)
++        selector.pack_start(normal, False, False, 0)
++        selector.pack_start(shifted, False, False, 0)
++        self.pack_start(selector, False, False, 0)
++
++    def _on_g600_layer_toggled(self, button: Gtk.RadioButton) -> None:
++        self._show_g600_layer(button.get_active())
++
++    def _show_g600_layer(self, show_shifted: bool) -> None:
++        for is_shifted, widgets in self._g600_layer_widgets.items():
++            for widget in widgets:
++                widget.set_visible(is_shifted == show_shifted)
++        self._mousemap.queue_resize()
++        self._mousemap.queue_draw()
+ 
+     def _on_button_mapping_changed(
+         self,
+@@ -124,11 +175,18 @@ class ButtonsPage(Gtk.Box):
+         # to the clicked button.
+         buttons = self._profile.buttons
+         device_type = self._device.device_type
++        display_index = self._button_display_indices.get(
++            ratbagd_button.index, ratbagd_button.index
++        )
++        if self._is_g600 and ratbagd_button.index >= SHIFT_OFFSET:
++            title = _("Configure G-Shift button {}").format(display_index)
++        else:
++            title = _("Configure button {}").format(display_index)
+         dialog = ButtonDialog(
+             ratbagd_button,
+             buttons,
+             device_type,
+-            title=_("Configure button {}").format(ratbagd_button.index),
++            title=title,
+             use_header_bar=True,
+             transient_for=self.get_toplevel(),
+         )
+diff --git a/piper/g600.py b/piper/g600.py
+new file mode 100644
+index 0000000..d9daa3e
+--- /dev/null
++++ b/piper/g600.py
+@@ -0,0 +1,17 @@
++# SPDX-License-Identifier: GPL-2.0-or-later
++
++from typing import Optional, Tuple
++
++
++MODEL_PREFIX = "usb:046d:c24a"
++BUTTON_COUNT = 20
++SHIFT_OFFSET = 21
++
++
++def button_layer(index: int) -> Optional[Tuple[bool, int]]:
++    """Return whether a G600 button is shifted and its physical button index."""
++    if 0 <= index < BUTTON_COUNT:
++        return False, index
++    if SHIFT_OFFSET <= index < SHIFT_OFFSET + BUTTON_COUNT:
++        return True, index - SHIFT_OFFSET
++    return None

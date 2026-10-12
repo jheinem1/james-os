@@ -1,0 +1,194 @@
+From 9ec8f18ca7ff869e0735b534f67164d543994b25 Mon Sep 17 00:00:00 2001
+From: James Heinemann <jheinem01@icloud.com>
+Date: Sun, 11 Oct 2026 21:17:05 -0700
+Subject: [PATCH 2/2] Follow the desktop portal color-scheme preference
+
+Respect KDE dark mode inside Flatpak, react to theme changes, and preserve explicit GTK_THEME overrides and older desktop fallbacks.
+
+Co-Authored-By: Codex <codex@openai.com>
+---
+ piper/appearance.py      | 56 +++++++++++++++++++++++++
+ piper/application.py     |  2 +
+ tests/appearance-test.py | 90 ++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 148 insertions(+)
+ create mode 100644 piper/appearance.py
+ create mode 100644 tests/appearance-test.py
+
+diff --git a/piper/appearance.py b/piper/appearance.py
+new file mode 100644
+index 0000000..c73d215
+--- /dev/null
++++ b/piper/appearance.py
+@@ -0,0 +1,56 @@
++# SPDX-License-Identifier: GPL-2.0-or-later
++
++import os
++
++import gi
++
++gi.require_version("Gtk", "3.0")
++from gi.repository import Gio, GLib, Gtk  # noqa
++
++
++class Appearance:
++    """Follow the desktop color scheme, including inside Flatpak on KDE."""
++
++    def __init__(self) -> None:
++        self._settings = Gtk.Settings.get_default()
++        self._proxy = None
++        if self._settings is None or os.environ.get("GTK_THEME"):
++            return
++        self._default_dark = self._settings.get_property(
++            "gtk-application-prefer-dark-theme"
++        )
++        try:
++            self._proxy = Gio.DBusProxy.new_for_bus_sync(
++                Gio.BusType.SESSION,
++                Gio.DBusProxyFlags.DO_NOT_LOAD_PROPERTIES,
++                None,
++                "org.freedesktop.portal.Desktop",
++                "/org/freedesktop/portal/desktop",
++                "org.freedesktop.portal.Settings",
++                None,
++            )
++            self._proxy.connect("g-signal", self._on_setting_changed)
++            result = self._proxy.call_sync(
++                "Read",
++                GLib.Variant("(ss)", ("org.freedesktop.appearance", "color-scheme")),
++                Gio.DBusCallFlags.NONE,
++                1000,
++                None,
++            )
++            self._apply(result.unpack()[0])
++        except GLib.Error:
++            # Older desktops may not provide this portal; keep their GTK setting.
++            pass
++
++    def _apply(self, scheme: int) -> None:
++        if scheme not in (0, 1, 2):
++            return
++        prefer_dark = self._default_dark if scheme == 0 else scheme == 1
++        self._settings.set_property("gtk-application-prefer-dark-theme", prefer_dark)
++
++    def _on_setting_changed(self, proxy, sender, signal, parameters) -> None:
++        if signal != "SettingChanged":
++            return
++        namespace, key, value = parameters.unpack()
++        if namespace == "org.freedesktop.appearance" and key == "color-scheme":
++            self._apply(value)
+diff --git a/piper/application.py b/piper/application.py
+index 19f10b1..3905e0f 100644
+--- a/piper/application.py
++++ b/piper/application.py
+@@ -2,6 +2,7 @@
+ 
+ from typing import Optional
+ 
++from .appearance import Appearance
+ from .ratbagd import Ratbagd
+ from .window import Window
+ 
+@@ -34,6 +35,7 @@ class Application(Gtk.Application):
+         initialization should be done here, to prevent doing duplicate work in
+         case another window is opened."""
+         Gtk.Application.do_startup(self)
++        self._appearance = Appearance()
+         self._build_app_menu()
+         self._ratbagd: Optional[Ratbagd] = None
+ 
+diff --git a/tests/appearance-test.py b/tests/appearance-test.py
+new file mode 100644
+index 0000000..f4f55e4
+--- /dev/null
++++ b/tests/appearance-test.py
+@@ -0,0 +1,90 @@
++#!/usr/bin/env python3
++# SPDX-License-Identifier: GPL-2.0-or-later
++
++import importlib.util
++import os
++from pathlib import Path
++import unittest
++from unittest.mock import Mock, patch
++
++spec = importlib.util.spec_from_file_location(
++    "appearance", Path(__file__).resolve().parents[1] / "piper/appearance.py"
++)
++appearance = importlib.util.module_from_spec(spec)
++spec.loader.exec_module(appearance)
++GLib = appearance.GLib
++
++
++class AppearanceTest(unittest.TestCase):
++    def setUp(self):
++        self.settings = Mock()
++        self.settings.get_property.return_value = False
++        self.proxy = Mock()
++        self.proxy.call_sync.return_value = GLib.Variant("(v)", (GLib.Variant("u", 1),))
++        for item in (
++            patch.object(
++                appearance.Gtk.Settings, "get_default", return_value=self.settings
++            ),
++            patch.object(
++                appearance.Gio.DBusProxy, "new_for_bus_sync", return_value=self.proxy
++            ),
++            patch.dict(os.environ, {}, clear=True),
++        ):
++            item.start()
++            self.addCleanup(item.stop)
++
++    def test_initial_dark_preference(self):
++        appearance.Appearance()
++        self.settings.set_property.assert_called_with(
++            "gtk-application-prefer-dark-theme", True
++        )
++
++    def test_live_light_and_default(self):
++        self.settings.get_property.return_value = True
++        controller = appearance.Appearance()
++        for scheme, expected in ((2, False), (1, True), (0, True)):
++            controller._on_setting_changed(
++                None,
++                None,
++                "SettingChanged",
++                GLib.Variant(
++                    "(ssv)",
++                    (
++                        "org.freedesktop.appearance",
++                        "color-scheme",
++                        GLib.Variant("u", scheme),
++                    ),
++                ),
++            )
++            self.settings.set_property.assert_called_with(
++                "gtk-application-prefer-dark-theme", expected
++            )
++
++    def test_unrelated_signal_and_unknown_scheme(self):
++        controller = appearance.Appearance()
++        self.settings.set_property.reset_mock()
++        controller._apply(99)
++        controller._on_setting_changed(
++            None,
++            None,
++            "SettingChanged",
++            GLib.Variant(
++                "(ssv)", ("another.namespace", "color-scheme", GLib.Variant("u", 2))
++            ),
++        )
++        self.settings.set_property.assert_not_called()
++
++    def test_missing_portal_keeps_gtk_preference(self):
++        self.proxy.call_sync.side_effect = GLib.Error("No portal")
++        appearance.Appearance()
++        self.settings.set_property.assert_not_called()
++
++    def test_explicit_gtk_theme_is_preserved(self):
++        with patch.dict(os.environ, {"GTK_THEME": "Adwaita:light"}):
++            appearance.Appearance()
++        self.proxy.call_sync.assert_not_called()
++        self.settings.set_property.assert_not_called()
++
++
++if __name__ == "__main__":
++    unittest.main()
