@@ -1,0 +1,47 @@
+#!/usr/bin/env bash
+# Build and install James OS's pinned Piper Flatpak for the desktop user.
+set -euo pipefail
+
+if [[ "${1:-}" == --version ]]; then
+  echo 'Piper 0.8 + 5d3c8845b556 + G600 layers + desktop color scheme'
+  exit 0
+fi
+if (( $# )); then
+  echo 'Usage: james-os-install-piper [--version]' >&2
+  exit 2
+fi
+if (( EUID == 0 )); then
+  echo 'Run as your desktop user, without sudo.' >&2
+  exit 1
+fi
+script_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
+assets="$script_dir/piper-g600"
+if [[ ! -f "$assets/org.freedesktop.Piper.json" ]]; then
+  assets=/usr/share/james-os/piper-g600
+fi
+[[ -f "$assets/org.freedesktop.Piper.json" ]] || { echo 'Piper build files are missing.' >&2; exit 1; }
+for command_name in flatpak flock; do
+  command -v "$command_name" >/dev/null || { echo "Missing dependency: $command_name" >&2; exit 1; }
+done
+state_root="${XDG_STATE_HOME:-$HOME/.local/state}/james-os/piper"
+cache_root="${XDG_CACHE_HOME:-$HOME/.cache}/james-os/piper"
+mkdir -p "$state_root" "$cache_root"
+exec 9>"$state_root/install.lock"
+flock -n 9 || { echo 'Another Piper installation is running.' >&2; exit 1; }
+
+# Use the user's existing Flathub remote. Never change system installations.
+flatpak install --user --noninteractive flathub org.flatpak.Builder org.gnome.Sdk//49 org.gnome.Platform//49
+cd "$cache_root"
+flatpak run org.flatpak.Builder --user --force-clean --repo="$state_root/repo" \
+  "$cache_root/build" "$assets/org.freedesktop.Piper.json"
+
+app=org.freedesktop.Piper
+if flatpak info --user "$app//master" >/dev/null 2>&1; then
+  backup="$state_root/piper-before-$(date -u +%Y%m%dT%H%M%SZ)-$$.flatpak"
+  flatpak build-bundle "${XDG_DATA_HOME:-$HOME/.local/share}/flatpak/repo" "$backup" "$app" master
+  printf 'Previous Piper saved to %s\n' "$backup"
+fi
+bundle="$state_root/piper-g600.flatpak"
+flatpak build-bundle --repo-url="file://$state_root/repo" "$state_root/repo" "$bundle" "$app" master
+flatpak install --user --noninteractive --reinstall "$bundle"
+printf 'Piper updated. Close and reopen Piper to use it. Mouse settings were not changed.\n'
