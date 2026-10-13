@@ -1,4 +1,6 @@
-# Piper for James OS
+# GTK Piper rollback for James OS
+
+The primary frontend is now [Piper Kirigami](../piper-kirigami/README.md). This recipe remains available for the previous GTK frontend.
 
 Piper 0.8, pinned to upstream commit
 [`5d3c8845b55643595ccb8029dfa5c7a2fb079e77`](https://github.com/libratbag/piper/commit/5d3c8845b55643595ccb8029dfa5c7a2fb079e77),
@@ -20,8 +22,8 @@ build directory was removed. The dependencies match that app's build recipe.
 
 ## Install or update
 
-Run `james-os-install-piper` as your desktop user. From a source checkout, run
-`bash system/usr_bin__james-os-install-piper` instead. This requires a user
+Run `james-os-install-piper-gtk` as your desktop user. From a source checkout, run
+`bash system/usr_bin__james-os-install-piper-gtk` instead. This requires a user
 Flathub remote and downloads the Flatpak Builder and GNOME 49 SDK if needed.
 It builds in the user's cache, keeps the local Flatpak repository under
 `~/.local/state/james-os/piper/repo`, saves the existing custom `master` build

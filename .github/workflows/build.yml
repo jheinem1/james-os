@@ -45,7 +45,8 @@ jobs:
           bash -n system/usr_bin__james-os-update-chatgpt
           bash -n system/usr_bin__james-os-check-staged-update
           bash -n system/usr_bin__james-os-install-piper
-          python3 -m unittest discover -s tests -v
+          bash -n system/usr_bin__james-os-install-piper-gtk
+          PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tests -v
 
       # This is required for large images like bazzite-dx to prevent "no space left on device" errors
       - name: Maximize build space
