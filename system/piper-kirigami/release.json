@@ -1,0 +1,8 @@
+{
+  "app_id": "io.github.jheinem1.PiperKirigami",
+  "tag": "v0.1.0",
+  "sha256": "814d40f924567a68431ef4e81424613508a538a82aa739c246f2028d216ea957",
+  "flatpak_commit": "58d58d442bbadb87b7c4e9edb6939e1fb970cdbffaa4f274b9423fa73f8a4fc9",
+  "source_commit": "4aee2e0622e04d550e6781eca3dd8873c9bd4868",
+  "ci_run": "https://github.com/jheinem1/piper-kirigami/actions/runs/38341869758"
+}

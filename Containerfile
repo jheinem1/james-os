@@ -14,7 +14,9 @@ COPY --chmod=0644 system/usr_lib_systemd_system_uupd.service.d__20-homebrew-path
 COPY --chmod=0644 system/usr_lib_systemd_system_uupd-manual.service.d__20-homebrew-path.conf /usr/lib/systemd/system/uupd-manual.service.d/20-homebrew-path.conf
 COPY --chmod=0755 system/usr_bin__james-os-install-kwin-mcp /usr/bin/james-os-install-kwin-mcp
 COPY --chmod=0755 system/usr_bin__james-os-install-piper /usr/bin/james-os-install-piper
+COPY --chmod=0755 system/usr_bin__james-os-install-piper-gtk /usr/bin/james-os-install-piper-gtk
 COPY system/piper-g600 /usr/share/james-os/piper-g600
+COPY system/piper-kirigami /usr/share/james-os/piper-kirigami
 COPY --chmod=0644 system/etc__hostname /etc/hostname
 COPY --chmod=0644 system/etc__kvm-display-recover.env /etc/kvm-display-recover.env
 COPY --chmod=0644 system/etc_ublue-os__topgrade.toml /etc/ublue-os/topgrade.toml

@@ -9,7 +9,7 @@ A [Fedora Atomic](https://fedoraproject.org/atomic-desktops) image built with [U
 - Adds back Konsole as a terminal option and Yakuake to complement it (ptyxis remains the default for compatibility with some Bazzite features).
 - Launches the System Update shortcut in Konsole and preinstalls OpenAI's official ChatGPT desktop app, including ChatGPT Work and Codex.
 - Keeps Homebrew formula upgrades working in both automatic and manual System Update runs by preserving Homebrew's prefix entrypoint through uupd's user switch.
-- Preinstalls the libratbag/ratbagd backend and includes `james-os-install-piper` to build the custom Piper Flatpak with G600 G-Shift layers and KDE dark-mode support. See [Piper installation and rollback](system/piper-g600/README.md).
+- Preinstalls the libratbag/ratbagd backend and includes `james-os-install-piper` to install a tested, pinned Piper Kirigami Flatpak with G600 Normal/G-Shift layers and native KDE styling. The earlier GTK build remains available for rollback. See [Piper installation and rollback](system/piper-kirigami/README.md).
 - Preinstalls CoreCtrl for power management.
 - Adds an Open With action in Dolphin to encode videos for Discord using CPU H.264 with a target-size popup and progress bar.
 - Installs Discord from the official RPM at image build time, patches it with a pinned Vencord build when app resources are available, and includes a KDE idle/lock watcher that can drive Discord presence over a local socket.

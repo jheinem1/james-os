@@ -1,47 +1,101 @@
 #!/usr/bin/env bash
-# Build and install James OS's pinned Piper Flatpak for the desktop user.
+# Install the tested Qt Piper release for this desktop user. No device writes.
 set -euo pipefail
-
+umask 077
+script_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
+assets="$script_dir/piper-kirigami"
+[[ -f "$assets/release.json" ]] || assets=/usr/share/james-os/piper-kirigami
+[[ -f "$assets/release.json" ]] || { echo 'Piper release metadata is missing.' >&2; exit 1; }
+mapfile -t release < <(python3 - "$assets/release.json" <<'PY'
+import json, re, sys
+r = json.load(open(sys.argv[1]))
+assert r['app_id'] == 'io.github.jheinem1.PiperKirigami'
+assert re.fullmatch(r'v[0-9][0-9A-Za-z._-]*', r['tag'])
+assert re.fullmatch(r'[0-9a-f]{64}', r['sha256'])
+assert re.fullmatch(r'[0-9a-f]{64}', r['flatpak_commit'])
+assert re.fullmatch(r'[0-9a-f]{40}', r['source_commit'])
+for key in ('tag', 'sha256', 'flatpak_commit', 'source_commit'):
+    print(r[key])
+PY
+)
+[[ ${#release[@]} == 4 ]] || { echo 'Invalid Piper release metadata.' >&2; exit 1; }
+tag=${release[0]}
+sha256=${release[1]}
+expected_commit=${release[2]}
+source_commit=${release[3]}
 if [[ "${1:-}" == --version ]]; then
-  echo 'Piper 0.8 + 5d3c8845b556 + G600 layers + desktop color scheme'
+  printf 'Piper Kirigami %s (source %s)\n' "$tag" "$source_commit"
   exit 0
 fi
 if (( $# )); then
   echo 'Usage: james-os-install-piper [--version]' >&2
   exit 2
 fi
-if (( EUID == 0 )); then
-  echo 'Run as your desktop user, without sudo.' >&2
-  exit 1
-fi
-script_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
-assets="$script_dir/piper-g600"
-if [[ ! -f "$assets/org.freedesktop.Piper.json" ]]; then
-  assets=/usr/share/james-os/piper-g600
-fi
-[[ -f "$assets/org.freedesktop.Piper.json" ]] || { echo 'Piper build files are missing.' >&2; exit 1; }
-for command_name in flatpak flock; do
+(( EUID != 0 )) || { echo 'Run as your desktop user, without sudo.' >&2; exit 1; }
+[[ $(uname -m) == x86_64 ]] || { echo 'This tested Piper bundle requires x86_64.' >&2; exit 1; }
+for command_name in flatpak flock curl sha256sum python3; do
   command -v "$command_name" >/dev/null || { echo "Missing dependency: $command_name" >&2; exit 1; }
 done
+app=io.github.jheinem1.PiperKirigami
+branch=development
 state_root="${XDG_STATE_HOME:-$HOME/.local/state}/james-os/piper"
 cache_root="${XDG_CACHE_HOME:-$HOME/.cache}/james-os/piper"
+data_root="${XDG_DATA_HOME:-$HOME/.local/share}"
 mkdir -p "$state_root" "$cache_root"
 exec 9>"$state_root/install.lock"
 flock -n 9 || { echo 'Another Piper installation is running.' >&2; exit 1; }
+work=$(mktemp -d "$cache_root/download.XXXXXXXX")
+trap 'rm -rf -- "$work"' EXIT
+bundle="$work/$app-x86_64-$branch.flatpak"
+curl --proto '=https' --tlsv1.2 --fail --location --retry 3 \
+  "https://github.com/jheinem1/piper-kirigami/releases/download/$tag/$app-x86_64-$branch.flatpak" -o "$bundle"
+printf '%s  %s\n' "$sha256" "$bundle" | sha256sum --check --status || { echo 'Piper bundle checksum mismatch; nothing installed.' >&2; exit 1; }
 
-# Use the user's existing Flathub remote. Never change system installations.
-flatpak install --user --noninteractive flathub org.flatpak.Builder org.gnome.Sdk//49 org.gnome.Platform//49
-cd "$cache_root"
-flatpak run org.flatpak.Builder --user --force-clean --repo="$state_root/repo" \
-  "$cache_root/build" "$assets/org.freedesktop.Piper.json"
+# Back up both app identities, launchers and the private GTK saved-profile library.
+# Keep GTK installed so rollback does not depend on a runtime download.
+backup=$(mktemp -d "$state_root/before-qt-$(date -u +%Y%m%dT%H%M%SZ).XXXXXXXX")
+flatpak list --user --app --columns=ref > "$work/installed-refs"
+while IFS=/ read -r installed_app arch installed_branch; do
+  [[ "$installed_app" == org.freedesktop.Piper || "$installed_app" == "$app" ]] || continue
+  flatpak build-bundle --arch="$arch" "$data_root/flatpak/repo" \
+    "$backup/$installed_app-$arch-$installed_branch.flatpak" "$installed_app" "$installed_branch"
+done < "$work/installed-refs"
+for desktop in org.freedesktop.Piper.desktop "$app.desktop"; do
+  for location in applications flatpak/exports/share/applications; do
+    if [[ -f "$data_root/$location/$desktop" ]]; then
+      mkdir -p "$backup/$location"
+      cp -L -- "$data_root/$location/$desktop" "$backup/$location/$desktop"
+    fi
+  done
+done
+profile_library="$HOME/.var/app/org.freedesktop.Piper/data/piper/profiles"
+if [[ -d "$profile_library" ]]; then cp -a -- "$profile_library" "$backup/profile-library"; fi
+cp -- "$assets/release.json" "$backup/new-release.json"
+printf 'Previous Piper and private profile files saved to %s\n' "$backup"
 
-app=org.freedesktop.Piper
-if flatpak info --user "$app//master" >/dev/null 2>&1; then
-  backup="$state_root/piper-before-$(date -u +%Y%m%dT%H%M%SZ)-$$.flatpak"
-  flatpak build-bundle "${XDG_DATA_HOME:-$HOME/.local/share}/flatpak/repo" "$backup" "$app" master
-  printf 'Previous Piper saved to %s\n' "$backup"
-fi
-bundle="$state_root/piper-g600.flatpak"
-flatpak build-bundle --repo-url="file://$state_root/repo" "$state_root/repo" "$bundle" "$app" master
 flatpak install --user --noninteractive --reinstall "$bundle"
-printf 'Piper updated. Close and reopen Piper to use it. Mouse settings were not changed.\n'
+actual_commit=$(flatpak info --user --show-commit "$app/x86_64/$branch")
+[[ "$actual_commit" == "$expected_commit" ]] || { echo 'Installed Piper commit mismatch; launcher was not replaced.' >&2; exit 1; }
+exported="$data_root/flatpak/exports/share/applications/$app.desktop"
+[[ -s "$exported" ]] || { echo 'Installed Piper launcher is missing.' >&2; exit 1; }
+mkdir -p "$data_root/applications"
+# Preserve existing favorites that reference GTK Piper, and hide that duplicate
+# from the application menu. The new Qt entry remains the visible launcher.
+python3 - "$exported" "$data_root/applications/org.freedesktop.Piper.desktop" <<'PY'
+from pathlib import Path
+import sys
+source, target = map(Path, sys.argv[1:])
+lines = source.read_text().splitlines()
+lines = [line for line in lines if not line.startswith(('NoDisplay=', 'X-JamesOS-Piper-redirect='))]
+index = lines.index('[Desktop Entry]') + 1
+lines[index:index] = ['NoDisplay=true', 'X-JamesOS-Piper-redirect=true']
+staged = target.with_suffix('.desktop.new')
+staged.write_text('\n'.join(lines) + '\n')
+staged.replace(target)
+PY
+if command -v update-desktop-database >/dev/null; then update-desktop-database "$data_root/applications"; fi
+if ! python3 "$assets/migrate-plasma-launcher.py" "$backup"; then
+  echo 'Piper is installed; repin a direct-file taskbar shortcut to Piper Kirigami if needed.' >&2
+fi
+printf 'Installed Piper Kirigami %s. Close and reopen Piper.\nRollback files: %s\n' "$tag" "$backup"
+printf 'Mouse settings and the saved-profile library were not changed. GTK Piper remains installed for rollback.\n'
