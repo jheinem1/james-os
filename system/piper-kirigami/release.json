@@ -1,8 +1,8 @@
 {
   "app_id": "io.github.jheinem1.PiperKirigami",
-  "tag": "v0.1.1",
-  "sha256": "2bb6fc9dc957c3902f8931d4b2565059e20fe2d2109add75b1f3587263d3ff36",
-  "flatpak_commit": "ffefecfea5b97a02818e5edbe0dd2b594ecb33a558a07ecd8f3b0d6f717c7c06",
-  "source_commit": "65d40c8418e742768287f1d3083aef92e4545c37",
-  "ci_run": "https://github.com/jheinem1/piper-kirigami/actions/runs/38363956388"
+  "tag": "v0.1.2",
+  "sha256": "837d218f5ede80336c968af36641da99b114181cc5f99aa80abc9b353c7cf874",
+  "flatpak_commit": "ed8be5acfc48963e0ccd3a04a5e1531638aec93c367b34fe9d52b37e7e95b3b7",
+  "source_commit": "5bdfbd505f1d54e196c896173c06dea966471720",
+  "ci_run": "https://github.com/jheinem1/piper-kirigami/actions/runs/39337544376"
 }
