@@ -62,6 +62,32 @@ example `/var/home/<user>/.codex` on Bazzite). An explicit MCP environment overr
 takes precedence over the launcher environment. Reconnect the helper after
 changing that override. This fix preserves browser permission enforcement.
 
+## KVM display recovery
+
+The image starts `kvm-display-recover.service` with the KDE graphical session.
+It reapplies the right display's configured mode and HDR settings after a KVM
+reconnect. Defaults are in `/etc/kvm-display-recover.env`; per-user overrides
+can be placed in `~/.config/kvm-display-recover.env`.
+
+Older setups may still have `kvm-focus-daemon.service` enabled in their home
+directory. Both watchers reset the same display, so running them together can
+interfere with recovery. The image includes a systemd drop-in that skips the
+legacy service whenever `/usr/bin/kvm-display-recover` is installed, including
+when the legacy unit itself lives in `~/.config/systemd/user`. The old unit and
+scripts are retained, and the replacement's display settings are unchanged.
+
+The guard takes effect when booting the updated image. To retire the duplicate
+immediately on an older running image that already has the replacement, run
+this as your desktop user:
+
+```bash
+systemctl --user disable --now kvm-focus-daemon.service
+```
+
+Confirm `kvm-display-recover.service` is active with
+`systemctl --user is-active kvm-display-recover.service`. Disabling the duplicate
+does not require a display reset, desktop restart, or reboot.
+
 ## KWin MCP user installation
 
 Run `james-os-install-kwin-mcp` as your desktop user (without sudo) to install
