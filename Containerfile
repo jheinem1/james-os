@@ -27,6 +27,7 @@ COPY --chmod=0755 system/usr_bin__kvm-display-recover /usr/bin/kvm-display-recov
 COPY --chmod=0755 system/usr_bin__kde-discord-idle-sync.py /usr/bin/kde-discord-idle-sync.py
 COPY --chmod=0755 system/usr_bin__patch-discord-vencord-asar.mjs /usr/bin/patch-discord-vencord-asar.mjs
 COPY --chmod=0644 system/usr_lib_systemd_user__kvm-display-recover.service /usr/lib/systemd/user/kvm-display-recover.service
+COPY --chmod=0644 system/usr_lib_systemd_user_kvm-focus-daemon.service.d__50-james-os-replacement.conf /usr/lib/systemd/user/kvm-focus-daemon.service.d/50-james-os-replacement.conf
 COPY --chmod=0644 system/usr_lib_systemd_user__kde-discord-idle-sync.service /usr/lib/systemd/user/kde-discord-idle-sync.service
 COPY --chmod=0644 system/usr_share_applications__discord-h264-encode.desktop /usr/share/applications/discord-h264-encode.desktop
 COPY --chmod=0644 system/usr_share_applications__system-update.desktop /usr/share/applications/system-update.desktop
