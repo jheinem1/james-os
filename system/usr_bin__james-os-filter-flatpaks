@@ -8,7 +8,6 @@ EXCLUDED = frozenset({
     "io.github.flattool.Warehouse",
     "com.github.tchx84.Flatseal",
     "it.mijorus.gearlever",
-    "org.kde.haruna",
 })
 
 

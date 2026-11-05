@@ -13,13 +13,13 @@ RECIPE = 'FLATPAK_LIST="$(curl ' + ORIGINAL + " '\\n' ' ')\"\n"
 
 class FlatpakDefaultsTest(unittest.TestCase):
     def test_exact_app_ids_and_refs_only(self):
-        keep = '# comment\n\norg.mozilla.firefox\norg.freedesktop.Platform.VulkanLayer.MangoHud//23.08\norg.freedesktop.Piper\norg.kde.haruna.extra\n'
+        keep = '# comment\n\norg.mozilla.firefox\norg.freedesktop.Platform.VulkanLayer.MangoHud//23.08\norg.freedesktop.Piper\norg.kde.haruna\ncom.github.tchx84.Flatseal.extra\n'
         excluded = ''.join(
             f'{app}\napp/{app}/x86_64/stable\n {app}//stable \n'
             for app in sorted(FILTER['EXCLUDED'])
         )
         self.assertEqual(FILTER['filter_defaults'](keep + excluded), keep)
-        self.assertEqual(FILTER['filter_defaults']('org.kde.haruna'), '')
+        self.assertEqual(FILTER['filter_defaults']('com.github.tchx84.Flatseal'), '')
         self.assertEqual(FILTER['filter_defaults']('org.example.Keep'), 'org.example.Keep')
 
     def fixture(self, recipe=RECIPE):
@@ -30,7 +30,7 @@ class FlatpakDefaultsTest(unittest.TestCase):
         justfile = root / 'usr/share/ublue-os/just/80-bazzite.just'
         for path in (manifest, justfile):
             path.parent.mkdir(parents=True, exist_ok=True)
-        manifest.write_text('org.mozilla.firefox\norg.kde.haruna\norg.freedesktop.Piper\n')
+        manifest.write_text('org.mozilla.firefox\norg.kde.haruna\ncom.github.tchx84.Flatseal\norg.freedesktop.Piper\n')
         justfile.write_text(recipe)
         return root, manifest, justfile
 
@@ -38,7 +38,7 @@ class FlatpakDefaultsTest(unittest.TestCase):
         root, manifest, recipe = self.fixture()
         FILTER['configure_image'](root)
         expected = RECIPE.replace(ORIGINAL, ORIGINAL.replace(' | tr', ' | /usr/bin/james-os-filter-flatpaks | tr'))
-        self.assertEqual(manifest.read_text(), 'org.mozilla.firefox\norg.freedesktop.Piper\n')
+        self.assertEqual(manifest.read_text(), 'org.mozilla.firefox\norg.kde.haruna\norg.freedesktop.Piper\n')
         self.assertEqual(recipe.read_text(), expected)
         FILTER['configure_image'](root)
         self.assertEqual(recipe.read_text(), expected)
@@ -61,7 +61,7 @@ class FlatpakDefaultsTest(unittest.TestCase):
         self.assertEqual(recipe.read_text(), RECIPE)
 
     def test_cli_and_build_wiring(self):
-        result = subprocess.run(['python3', str(HELPER)], input='org.kde.haruna\norg.mozilla.firefox\n', text=True, capture_output=True, check=True)
+        result = subprocess.run(['python3', str(HELPER)], input='com.github.tchx84.Flatseal\norg.mozilla.firefox\n', text=True, capture_output=True, check=True)
         self.assertEqual(result.stdout, 'org.mozilla.firefox\n')
         self.assertNotEqual(subprocess.run(['python3', str(HELPER), '--invalid'], capture_output=True).returncode, 0)
         self.assertIn('/usr/bin/james-os-filter-flatpaks --configure-image', (REPO / 'build.sh').read_text())

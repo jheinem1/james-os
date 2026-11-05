@@ -5,7 +5,7 @@ A [Fedora Atomic](https://fedoraproject.org/atomic-desktops) image built with [U
 ## Changes from Bazzite
 - Replaces GNOME Disk Utility with KDE Partition Manager.
 - Removes Lutris.
-- Excludes DistroShelf, Warehouse, Flatseal, Gear Lever, and Haruna from default Flatpak provisioning. Explicit installation remains available. Existing installations are not uninstalled by image updates.
+- Excludes DistroShelf, Warehouse, Flatseal, and Gear Lever from default Flatpak provisioning. Explicit installation remains available. Existing installations are not uninstalled by image updates.
 - Preinstalls 1Password and the 1Password CLI.
 - Adds Konsole and Yakuake as terminal options.
 - Launches the System Update shortcut in Konsole and preinstalls OpenAI's official ChatGPT desktop app, including ChatGPT Work and Codex.

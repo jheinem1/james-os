@@ -12,7 +12,7 @@ James OS is a custom Fedora Atomic Desktop image built using Universal Blue's to
 - Adds Konsole and Yakuake terminal emulators
 - Includes the libratbag/ratbagd device-configuration backend and CoreCtrl for power management
 - Pre-installs Discord RPM with Vencord and KDE idle integration
-- Excludes five opted-out Flatpaks from default provisioning without blocking explicit installation
+- Excludes four opted-out Flatpaks from default provisioning without blocking explicit installation
 
 ## Tech Stack
 
