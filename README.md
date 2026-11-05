@@ -5,8 +5,9 @@ A [Fedora Atomic](https://fedoraproject.org/atomic-desktops) image built with [U
 ## Changes from Bazzite
 - Replaces GNOME Disk Utility with KDE Partition Manager.
 - Removes Lutris.
+- Excludes DistroShelf, Warehouse, Flatseal, Gear Lever, and Haruna from default Flatpak provisioning. Explicit installation remains available. Existing installations are not uninstalled by image updates.
 - Preinstalls 1Password and the 1Password CLI.
-- Adds back Konsole as a terminal option and Yakuake to complement it (ptyxis remains the default for compatibility with some Bazzite features).
+- Adds Konsole and Yakuake as terminal options.
 - Launches the System Update shortcut in Konsole and preinstalls OpenAI's official ChatGPT desktop app, including ChatGPT Work and Codex.
 - Keeps Homebrew formula upgrades working in both automatic and manual System Update runs by preserving Homebrew's prefix entrypoint through uupd's user switch.
 - Preinstalls the libratbag/ratbagd backend and includes `james-os-install-piper` to install a tested, pinned Piper Kirigami Flatpak with G600 Normal/G-Shift layers and native KDE styling. The earlier GTK build remains available for rollback. See [Piper installation and rollback](system/piper-kirigami/README.md).
@@ -22,7 +23,7 @@ A [Fedora Atomic](https://fedoraproject.org/atomic-desktops) image built with [U
 1. From a Fedora Atomic image, run the following command to install James OS:
 
     ```bash
-    sudo rpm-ostree rebase --experimental ostree-unverified-registry:ghcr.io/jheinem1/james-os:v0.0.5
+    sudo rpm-ostree rebase --experimental ostree-unverified-registry:ghcr.io/jheinem1/james-os:latest
     ```
 2. Reboot your system.
 
@@ -32,7 +33,7 @@ I'm not actively seeking contributions, but if you want to help out, feel free t
 ## Important files
 - 'Containerfile': The file used to build the container image.
 - 'build.sh': The main script ran to configure the image from the Containerfile.
-- 'Justfile': This file contains the "ujust" commands available in the image (there are currently none other than the ones inherited by Bazzite and a template).
+- 'Justfile': Developer tasks for building images, linting, and running test VMs. Runtime `ujust` recipes are inherited from Bazzite, with the default Flatpak installer filtered by James OS.
 
 ## ChatGPT browser permissions on Atomic desktops
 

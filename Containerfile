@@ -1,6 +1,7 @@
 FROM ghcr.io/ublue-os/bazzite:stable
 
 COPY build.sh /tmp/build.sh
+COPY --chmod=0755 system/usr_bin__james-os-filter-flatpaks /usr/bin/james-os-filter-flatpaks
 COPY vencord-overlay /tmp/vencord-overlay
 ENV GNUPGHOME=/var/tmp/gnupg
 
