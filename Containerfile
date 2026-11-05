@@ -36,6 +36,6 @@ RUN chmod +x /tmp/build.sh && \
     mkdir -p "$GNUPGHOME" /var/lib/alternatives && chmod 700 "$GNUPGHOME" && \
     /tmp/build.sh && \
     rm -rf /var/cache/dnf /tmp/* && \
-    ostree container commit
+    bootc container lint
 
 LABEL org.opencontainers.image.source="https://github.com/jheinem1/james-os"
