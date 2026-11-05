@@ -1,0 +1,48 @@
+#!/usr/bin/python3
+"""Exclude JamesOS's opted-out apps from Bazzite default installation lists."""
+import pathlib
+import sys
+
+EXCLUDED = frozenset({
+    "com.ranfdev.DistroShelf",
+    "io.github.flattool.Warehouse",
+    "com.github.tchx84.Flatseal",
+    "it.mijorus.gearlever",
+})
+
+
+def filter_defaults(text):
+    kept = []
+    for line in text.splitlines(keepends=True):
+        value = line.strip()
+        if value.startswith("app/"):
+            value = value[4:]
+        if value.split("/", 1)[0] not in EXCLUDED:
+            kept.append(line)
+    return "".join(kept)
+
+
+def configure_image(root):
+    manifest = root / "usr/share/ublue-os/bazzite/flatpak/install"
+    recipe = root / "usr/share/ublue-os/just/80-bazzite.just"
+    source = recipe.read_text()
+    original = 'https://raw.githubusercontent.com/ublue-os/bazzite/main/installer/${FLATPAKS} | tr'
+    replacement = 'https://raw.githubusercontent.com/ublue-os/bazzite/main/installer/${FLATPAKS} | /usr/bin/james-os-filter-flatpaks | tr'
+    if source.count(original) == 1:
+        source = source.replace(original, replacement)
+    elif source.count(replacement) != 1:
+        raise RuntimeError("Bazzite Flatpak provisioning changed; review the JamesOS filter")
+    # Validate both inputs before writing either file. Do not blacklist apps:
+    # users can still reinstall these explicitly whenever they want.
+    filtered = filter_defaults(manifest.read_text())
+    manifest.write_text(filtered)
+    recipe.write_text(source)
+
+
+if __name__ == "__main__":
+    if sys.argv[1:] == ["--configure-image"]:
+        configure_image(pathlib.Path("/"))
+    elif len(sys.argv) == 1:
+        sys.stdout.write(filter_defaults(sys.stdin.read()))
+    else:
+        sys.exit("Usage: james-os-filter-flatpaks [--configure-image]")
