@@ -1,0 +1,340 @@
+.vc-user-time-zones-profile-section {
+    margin-top: 12px;
+}
+
+.vc-user-time-zones-profile-button,
+.vc-user-time-zones-sidebar-button,
+.vc-user-time-zones-message-time,
+.vc-user-time-zones-member-time,
+.vc-user-time-zones-modal-content {
+    --vc-user-time-zones-text-strong: var(--text-strong, var(--header-primary, #f2f3f5));
+    --vc-user-time-zones-text-default: var(--text-default, var(--text-normal, #dbdee1));
+    --vc-user-time-zones-text-muted: var(--text-muted, var(--interactive-normal, #b5bac1));
+    --vc-user-time-zones-text-brand: var(--text-brand, var(--brand-260, #c9cdfb));
+}
+
+.vc-user-time-zones-profile-button,
+.vc-user-time-zones-sidebar-button {
+    all: unset;
+    box-sizing: border-box;
+    color: var(--vc-user-time-zones-text-default);
+    cursor: pointer;
+    display: block;
+    max-width: 100%;
+    width: 100%;
+}
+
+.vc-user-time-zones-profile-button-content {
+    align-items: center;
+    background: color-mix(in srgb, var(--brand-500) 10%, transparent);
+    border: 1px solid color-mix(in srgb, var(--brand-500) 22%, var(--border-subtle));
+    border-radius: 8px;
+    display: flex;
+    gap: 10px;
+    min-width: 0;
+    padding: 9px 10px;
+    transition: background-color 120ms ease, border-color 120ms ease;
+}
+
+.vc-user-time-zones-profile-button:hover .vc-user-time-zones-profile-button-content,
+.vc-user-time-zones-sidebar-button:hover .vc-user-time-zones-profile-button-content {
+    background: color-mix(in srgb, var(--brand-500) 16%, transparent);
+    border-color: color-mix(in srgb, var(--brand-500) 45%, var(--border-subtle));
+}
+
+.vc-user-time-zones-profile-clock {
+    align-items: center;
+    background: var(--brand-500);
+    border-radius: 50%;
+    color: var(--white, var(--white-500, #fff));
+    display: inline-flex;
+    flex: 0 0 auto;
+    height: 28px;
+    justify-content: center;
+    width: 28px;
+}
+
+.vc-user-time-zones-profile-copy {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.vc-user-time-zones-profile-copy strong {
+    color: var(--vc-user-time-zones-text-strong) !important;
+    font-size: 15px;
+    font-weight: 650;
+    line-height: 19px;
+}
+
+.vc-user-time-zones-profile-copy small {
+    color: var(--vc-user-time-zones-text-default) !important;
+    font-size: 12px;
+    line-height: 16px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.vc-user-time-zones-edit-label {
+    color: var(--vc-user-time-zones-text-brand) !important;
+    flex: 0 0 auto;
+    font-size: 12px;
+    font-weight: 650;
+}
+
+.vc-user-time-zones-message-time,
+.vc-user-time-zones-member-time {
+    align-items: center;
+    border: 0;
+    cursor: pointer;
+    display: inline-flex;
+    font-family: inherit;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+.vc-user-time-zones-message-time {
+    background: color-mix(in srgb, var(--brand-500) 22%, var(--background-secondary));
+    border: 1px solid color-mix(in srgb, var(--text-brand, var(--brand-360, #949cf7)) 34%, transparent);
+    border-radius: 999px;
+    color: var(--vc-user-time-zones-text-default);
+    font-size: 11px;
+    font-weight: 650;
+    gap: 4px;
+    height: 19px;
+    line-height: 17px;
+    padding: 0 7px 0 5px;
+    position: relative;
+    top: -1px;
+}
+
+.vc-user-time-zones-message-time:hover {
+    background: color-mix(in srgb, var(--brand-500) 34%, var(--background-secondary));
+    color: var(--vc-user-time-zones-text-strong);
+}
+
+.vc-user-time-zones-message-time svg {
+    color: var(--vc-user-time-zones-text-brand);
+}
+
+.vc-user-time-zones-message-time-label {
+    color: var(--vc-user-time-zones-text-brand);
+    font-size: 9px;
+    letter-spacing: 0.035em;
+    text-transform: uppercase;
+}
+
+.vc-user-time-zones-member-time {
+    background: color-mix(in srgb, var(--brand-500) 14%, transparent);
+    border-radius: 4px;
+    color: var(--vc-user-time-zones-text-default);
+    font-size: 10px;
+    font-weight: 650;
+    gap: 3px;
+    line-height: 16px;
+    max-width: 66px;
+    padding: 0 4px;
+}
+
+.vc-user-time-zones-member-time:hover {
+    background: color-mix(in srgb, var(--brand-500) 24%, transparent);
+    color: var(--vc-user-time-zones-text-strong);
+}
+
+.vc-user-time-zones-member-time svg {
+    color: var(--vc-user-time-zones-text-brand);
+    flex: 0 0 auto;
+}
+
+.vc-user-time-zones-modal-content {
+    color: var(--vc-user-time-zones-text-default);
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.vc-user-time-zones-preview-card {
+    align-items: center;
+    background:
+        radial-gradient(circle at 100% 0, color-mix(in srgb, var(--brand-500) 28%, transparent), transparent 48%),
+        var(--background-secondary);
+    border: 1px solid color-mix(in srgb, var(--brand-500) 32%, var(--border-subtle));
+    border-radius: 12px;
+    display: flex;
+    gap: 13px;
+    min-height: 82px;
+    padding: 14px 16px;
+}
+
+.vc-user-time-zones-preview-card-empty {
+    border-color: var(--border-subtle);
+}
+
+.vc-user-time-zones-preview-icon {
+    align-items: center;
+    background: var(--brand-500);
+    border-radius: 12px;
+    color: var(--white, var(--white-500, #fff));
+    display: flex;
+    flex: 0 0 auto;
+    height: 44px;
+    justify-content: center;
+    width: 44px;
+}
+
+.vc-user-time-zones-preview-copy {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.vc-user-time-zones-preview-eyebrow {
+    color: var(--vc-user-time-zones-text-brand);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    line-height: 14px;
+}
+
+.vc-user-time-zones-preview-copy strong {
+    color: var(--vc-user-time-zones-text-strong);
+    font-size: 24px;
+    font-variant-numeric: tabular-nums;
+    line-height: 30px;
+}
+
+.vc-user-time-zones-preview-copy > span:last-child {
+    color: var(--vc-user-time-zones-text-default);
+    font-size: 12px;
+    line-height: 16px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.vc-user-time-zones-mode-row {
+    background: var(--background-secondary);
+    border-radius: 8px;
+    display: grid;
+    gap: 4px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    padding: 4px;
+}
+
+.vc-user-time-zones-mode-button {
+    background: transparent;
+    border: 0;
+    border-radius: 6px;
+    color: var(--vc-user-time-zones-text-default);
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 600;
+    min-height: 34px;
+    padding: 0 10px;
+}
+
+.vc-user-time-zones-mode-button:hover {
+    color: var(--vc-user-time-zones-text-strong);
+}
+
+.vc-user-time-zones-mode-button-active {
+    background: var(--background-modifier-selected);
+    box-shadow: 0 1px 2px rgb(0 0 0 / 20%);
+    color: var(--vc-user-time-zones-text-strong);
+}
+
+.vc-user-time-zones-field-hint {
+    color: var(--vc-user-time-zones-text-default);
+    font-size: 12px;
+    line-height: 16px;
+    margin-top: 6px;
+}
+
+.vc-user-time-zones-field-error {
+    color: var(--text-feedback-critical, #ff7b7e);
+}
+
+.vc-user-time-zones-choice-list {
+    background: var(--background-secondary);
+    border: 1px solid var(--border-subtle);
+    border-radius: 8px;
+    display: grid;
+    gap: 2px;
+    margin-top: 10px;
+    max-height: 230px;
+    overflow: auto;
+    padding: 4px;
+}
+
+.vc-user-time-zones-choice {
+    align-items: center;
+    background: transparent;
+    border: 0;
+    border-radius: 6px;
+    color: var(--vc-user-time-zones-text-default);
+    cursor: pointer;
+    display: flex;
+    gap: 12px;
+    justify-content: space-between;
+    min-height: 42px;
+    padding: 5px 9px;
+    text-align: left;
+}
+
+.vc-user-time-zones-choice:hover,
+.vc-user-time-zones-choice-active {
+    background: var(--background-modifier-hover);
+}
+
+.vc-user-time-zones-choice-active {
+    box-shadow: inset 3px 0 var(--brand-500);
+}
+
+.vc-user-time-zones-choice-copy {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.vc-user-time-zones-choice-copy strong {
+    color: var(--vc-user-time-zones-text-strong);
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 17px;
+}
+
+.vc-user-time-zones-choice-copy small {
+    color: var(--vc-user-time-zones-text-default);
+    font-size: 11px;
+    line-height: 15px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.vc-user-time-zones-choice-time {
+    color: var(--vc-user-time-zones-text-default);
+    flex: 0 0 auto;
+    font-size: 13px;
+    font-variant-numeric: tabular-nums;
+    font-weight: 650;
+}
+
+.vc-user-time-zones-empty-state {
+    color: var(--vc-user-time-zones-text-default);
+    font-size: 13px;
+    padding: 18px 12px;
+    text-align: center;
+}
+
+@media (width <= 520px) {
+    .vc-user-time-zones-message-time-label {
+        display: none;
+    }
+
+    .vc-user-time-zones-preview-copy > span:last-child {
+        white-space: normal;
+    }
+}
