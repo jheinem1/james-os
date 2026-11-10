@@ -8,7 +8,9 @@ curl --fail --location --retry 3 "https://github.com/jheinem1/bazzite-updater-kd
 curl --fail --location --retry 3 "https://github.com/rfrench3/controllable/archive/${CONTROLLABLE_REF}.tar.gz" | tar xz --strip-components=1 -C /tmp/controllable-source
 cp -a /tmp/controllable-source/. /tmp/updater-source/src/components/controllable/
 dnf5 install -y dnf5-plugins gcc-c++ ninja-build git
-(cd /tmp/updater-source && dnf5 builddep -y bazzite-updater.spec)
+# Bazzite filters Mesa packages in its runtime repositories. SDL3 headers need
+# mesa-libGLU-devel; permit build dependencies only in this discarded stage.
+(cd /tmp/updater-source && dnf5 --setopt=disable_excludes=all builddep -y bazzite-updater.spec)
 cmake -S /tmp/updater-source -B /tmp/updater-build -G Ninja \
   -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr/lib/bazzite-updater-kde \
   -DKDE_INSTALL_LIBDIR=lib -DKDE_INSTALL_QMLDIR=lib/qml \
