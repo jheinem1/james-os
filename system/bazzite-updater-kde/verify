@@ -19,3 +19,6 @@ cat /tmp/updater-startup.log
 [[ $status -eq 124 ]]
 ! grep -E 'failed to load component|is not installed|Cannot load library|undefined symbol|Type .* unavailable' /tmp/updater-startup.log
 # No buttons are pressed, and no update/rollback/rebase/reboot operation is run.
+
+# Trusted evidence for temporary user overrides to hand off after reboot.
+cp "$root/source-commit" "$root/runtime-verified"

@@ -19,3 +19,5 @@ cmake --build /tmp/updater-build --parallel 2
 DESTDIR=/out cmake --install /tmp/updater-build
 grep -qx 'BAZZITE_UPDATER_UI_PROBE:BOOL=OFF' /tmp/updater-build/CMakeCache.txt
 printf '%s\n' "$UPDATER_REF" > /out/usr/lib/bazzite-updater-kde/source-commit
+
+install -m0644 /tmp/updater-source/fork-version.txt /out/usr/lib/bazzite-updater-kde/fork-version

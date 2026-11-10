@@ -18,3 +18,10 @@ An OSTree deployment rollback also restores the previous whole image.
 Neither recovery operation nor an actual update/rebase/reboot is run by
 build verification. The smoke test starts an offscreen window for eight
 seconds without pressing any action buttons.
+
+After successful runtime verification, the image records its source commit
+in `runtime-verified` and its fork release in `fork-version`. Temporary user
+launchers prefer `/usr/bin/bazzite-updater` after booting a verified image
+with identical source or a newer well-formed fork version. Older, unverified,
+or malformed image metadata keeps the local fallback. No reboot is needed
+or performed to test this routing decision.
