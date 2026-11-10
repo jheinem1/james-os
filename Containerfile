@@ -44,11 +44,14 @@ COPY --chmod=0644 system/usr_share_applications__system-update.desktop /usr/shar
 RUN chmod +x /tmp/build.sh && \
     mkdir -p "$GNUPGHOME" /var/lib/alternatives && chmod 700 "$GNUPGHOME" && \
     /tmp/build.sh && \
+    echo "image finalize: install updater launcher" && \
     install -Dm0755 /usr/bin/bazzite-updater /usr/libexec/bazzite-updater-upstream && \
     install -m0755 /tmp/kde-updater-launch /usr/bin/bazzite-updater && \
-    bash /tmp/kde-updater-verify && \
+    timeout --kill-after=5s 45s bash /tmp/kde-updater-verify && \
     test -x /usr/bin/bazzite-updater && \
-    rm -rf /var/cache/dnf /tmp/* && \
-    bootc container lint
+    echo "image finalize: remove temporary files" && \
+    timeout --kill-after=5s 60s rm -rf /var/cache/dnf /tmp/* && \
+    echo "image finalize: bootc lint" && \
+    timeout --kill-after=5s 60s bootc container lint
 
 LABEL org.opencontainers.image.source="https://github.com/jheinem1/james-os"

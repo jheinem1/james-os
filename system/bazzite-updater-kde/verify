@@ -4,21 +4,34 @@ root=/usr/lib/bazzite-updater-kde
 export LD_LIBRARY_PATH="$root/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
 export QML_IMPORT_PATH="$root/lib/qml${QML_IMPORT_PATH:+:$QML_IMPORT_PATH}"
 # Reject a builder/runtime ABI mismatch before publishing the image.
-ldd -r "$root/bin/bazzite-updater" > /tmp/updater-ldd.log 2>&1
+echo "updater verify: ABI check"
+if ! timeout --kill-after=3s 20s ldd -r "$root/bin/bazzite-updater" > /tmp/updater-ldd.log 2>&1; then
+    cat /tmp/updater-ldd.log
+    echo "updater verify: ABI check failed or timed out" >&2
+    exit 1
+fi
 if grep -E 'not found|undefined symbol' /tmp/updater-ldd.log; then exit 1; fi
 export QT_QPA_PLATFORM=offscreen QT_QUICK_BACKEND=software
 export QT_QUICK_CONTROLS_STYLE=org.kde.desktop QT_STYLE_OVERRIDE=breeze
 export XDG_CURRENT_DESKTOP=KDE KDE_FULL_SESSION=true
 mkdir -p /tmp/updater-verify-home
 export HOME=/tmp/updater-verify-home XDG_CONFIG_HOME=/tmp/updater-verify-home/.config
+echo "updater verify: offscreen startup (8s, then 3s termination grace)"
 set +e
-timeout 8 /usr/bin/bazzite-updater > /tmp/updater-startup.log 2>&1
+timeout --kill-after=3s 8s /usr/bin/bazzite-updater > /tmp/updater-startup.log 2>&1
 status=$?
 set -e
 cat /tmp/updater-startup.log
-[[ $status -eq 124 ]]
-! grep -E 'failed to load component|is not installed|Cannot load library|undefined symbol|Type .* unavailable' /tmp/updater-startup.log
+if [[ $status -ne 124 ]]; then
+    echo "updater verify: unexpected startup status $status (expected 124)" >&2
+    exit 1
+fi
+if grep -E 'failed to load component|is not installed|Cannot load library|undefined symbol|Type .* unavailable' /tmp/updater-startup.log; then
+    echo "updater verify: QML startup failure" >&2
+    exit 1
+fi
 # No buttons are pressed, and no update/rollback/rebase/reboot operation is run.
 
 # Trusted evidence for temporary user overrides to hand off after reboot.
 cp "$root/source-commit" "$root/runtime-verified"
+echo "updater verify: passed"
