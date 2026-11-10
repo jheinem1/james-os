@@ -3,7 +3,7 @@ set -euo pipefail
 # Both stages use the same Bazzite base so Qt/KDE ABI matches the final image.
 : "${UPDATER_REF:?Pin a reviewed updater commit}"
 CONTROLLABLE_REF=ed318d33f0f243002e019d8e7ee28c3254a2661e
-mkdir -p /tmp/updater-source /tmp/controllable-source
+mkdir -p /tmp/updater-source /tmp/controllable-source /var/lib/alternatives
 curl --fail --location --retry 3 "https://github.com/jheinem1/bazzite-updater-kde/archive/${UPDATER_REF}.tar.gz" | tar xz --strip-components=1 -C /tmp/updater-source
 curl --fail --location --retry 3 "https://github.com/rfrench3/controllable/archive/${CONTROLLABLE_REF}.tar.gz" | tar xz --strip-components=1 -C /tmp/controllable-source
 cp -a /tmp/controllable-source/. /tmp/updater-source/src/components/controllable/
