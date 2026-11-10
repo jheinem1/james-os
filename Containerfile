@@ -35,6 +35,7 @@ COPY --chmod=0644 system/usr_share_applications__system-update.desktop /usr/shar
 RUN chmod +x /tmp/build.sh && \
     mkdir -p "$GNUPGHOME" /var/lib/alternatives && chmod 700 "$GNUPGHOME" && \
     /tmp/build.sh && \
+    test -x /usr/bin/bazzite-updater && \
     rm -rf /var/cache/dnf /tmp/* && \
     bootc container lint
 
