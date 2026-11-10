@@ -1,5 +1,14 @@
+# Compile the KDE updater in a disposable stage, not in the shipped image.
+FROM ghcr.io/ublue-os/bazzite:stable AS updater-builder
+ARG UPDATER_REF=3df5e7445ed2b2a1375b750e32f62ccad3d707ea
+COPY system/bazzite-updater-kde/build /tmp/build-kde-updater
+RUN bash /tmp/build-kde-updater
+
 FROM ghcr.io/ublue-os/bazzite:stable
 
+COPY --from=updater-builder /out/usr/lib/bazzite-updater-kde /usr/lib/bazzite-updater-kde
+COPY system/bazzite-updater-kde/launch /tmp/kde-updater-launch
+COPY system/bazzite-updater-kde/verify /tmp/kde-updater-verify
 COPY build.sh /tmp/build.sh
 COPY vencord-overlay /tmp/vencord-overlay
 ENV GNUPGHOME=/var/tmp/gnupg
@@ -35,6 +44,9 @@ COPY --chmod=0644 system/usr_share_applications__system-update.desktop /usr/shar
 RUN chmod +x /tmp/build.sh && \
     mkdir -p "$GNUPGHOME" /var/lib/alternatives && chmod 700 "$GNUPGHOME" && \
     /tmp/build.sh && \
+    install -Dm0755 /usr/bin/bazzite-updater /usr/libexec/bazzite-updater-upstream && \
+    install -m0755 /tmp/kde-updater-launch /usr/bin/bazzite-updater && \
+    bash /tmp/kde-updater-verify && \
     test -x /usr/bin/bazzite-updater && \
     rm -rf /var/cache/dnf /tmp/* && \
     bootc container lint
