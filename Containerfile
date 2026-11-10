@@ -1,6 +1,6 @@
 # Compile the KDE updater in a disposable stage, not in the shipped image.
 FROM ghcr.io/ublue-os/bazzite:stable AS updater-builder
-ARG UPDATER_REF=3df5e7445ed2b2a1375b750e32f62ccad3d707ea
+ARG UPDATER_REF=03a27155d5947f068dd81133ce3285f2b59c7fdf
 COPY system/bazzite-updater-kde/build /tmp/build-kde-updater
 RUN bash /tmp/build-kde-updater
 
