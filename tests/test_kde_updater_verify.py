@@ -29,6 +29,9 @@ class VerifyTests(unittest.TestCase):
     def test_success(self):
         self.check_case('exec sleep 10', expected=True)
 
+    def test_sdl_signal_handler_is_disabled(self):
+        self.check_case('[[ ${SDL_NO_SIGNAL_HANDLERS:-} == 1 ]] || trap "" TERM; exec sleep 10', expected=True)
+
     def test_early_exit(self):
         self.check_case('exit 1')
 

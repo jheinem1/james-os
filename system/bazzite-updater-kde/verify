@@ -11,6 +11,9 @@ if ! timeout --kill-after=3s 20s ldd -r "$root/bin/bazzite-updater" > /tmp/updat
     exit 1
 fi
 if grep -E 'not found|undefined symbol' /tmp/updater-ldd.log; then exit 1; fi
+# SDL normally converts SIGTERM to SDL_EVENT_QUIT; this Qt smoke test does not
+# consume SDL quit events. Let timeout terminate only this test process normally.
+export SDL_NO_SIGNAL_HANDLERS=1
 export QT_QPA_PLATFORM=offscreen QT_QUICK_BACKEND=software
 export QT_QUICK_CONTROLS_STYLE=org.kde.desktop QT_STYLE_OVERRIDE=breeze
 export XDG_CURRENT_DESKTOP=KDE KDE_FULL_SESSION=true
