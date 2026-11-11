@@ -1,0 +1,9 @@
+#!/usr/bin/bash
+set -euo pipefail
+# Keep the fork's pinned Controllable module private; leave the system copy intact.
+root=/usr/lib/bazzite-updater-kde
+export LD_LIBRARY_PATH="$root/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+export QML_IMPORT_PATH="$root/lib/qml${QML_IMPORT_PATH:+:$QML_IMPORT_PATH}"
+export QML2_IMPORT_PATH="$root/lib/qml${QML2_IMPORT_PATH:+:$QML2_IMPORT_PATH}"
+export XDG_DATA_DIRS="$root/share:${XDG_DATA_DIRS:-/usr/local/share:/usr/share}"
+exec "$root/bin/bazzite-updater" "$@"
