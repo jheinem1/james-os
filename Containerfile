@@ -1,12 +1,11 @@
-# Compile the KDE updater in a disposable stage, not in the shipped image.
-FROM ghcr.io/ublue-os/bazzite:stable AS updater-builder
-ARG UPDATER_REF=9ea7804bf9f94c618baa48fbe75ea5b1168e46bf
-COPY system/bazzite-updater-kde/build /tmp/build-kde-updater
-RUN bash /tmp/build-kde-updater
+# Fetch and validate a pinned native package without installing build dependencies.
+FROM ghcr.io/ublue-os/bazzite:stable AS updater-package
+COPY system/bazzite-updater-kde /tmp/kde-updater
+RUN python3 /tmp/kde-updater/acquire.py --lock /tmp/kde-updater/package.json --destination /out
 
 FROM ghcr.io/ublue-os/bazzite:stable
 
-COPY --from=updater-builder /out/usr/lib/bazzite-updater-kde /usr/lib/bazzite-updater-kde
+COPY --from=updater-package /out/usr/lib/bazzite-updater-kde /usr/lib/bazzite-updater-kde
 COPY system/bazzite-updater-kde/launch /tmp/kde-updater-launch
 COPY system/bazzite-updater-kde/verify /tmp/kde-updater-verify
 COPY build.sh /tmp/build.sh

@@ -8,10 +8,13 @@ SOURCE = pathlib.Path(__file__).resolve().parents[1] / 'system/bazzite-updater-k
 
 
 class VerifyTests(unittest.TestCase):
-    def check_case(self, app, ldd='exit 0', expected=False):
+    def check_case(self, app, ldd='exit 0', expected=False, library=False):
         with tempfile.TemporaryDirectory() as tmp:
             root = pathlib.Path(tmp)
             (root / 'bin').mkdir()
+            if library:
+                (root / 'lib/qml').mkdir(parents=True)
+                (root / 'lib/qml/plugin.so').write_text('inert test library')
             (root / 'source-commit').write_text('test-source\n')
             for name, body in [('app', app), ('ldd', ldd)]:
                 file = root / 'bin' / name
@@ -40,6 +43,9 @@ class VerifyTests(unittest.TestCase):
 
     def test_abi_error(self):
         self.check_case('exec sleep 10', 'echo "libmissing.so not found"')
+
+    def test_private_qml_library_abi_error(self):
+        self.check_case('exec sleep 10', '[[ "$2" != *.so ]] || echo "undefined symbol: missing"', library=True)
 
     def test_abi_hang(self):
         self.check_case('exec sleep 10', "trap '' TERM; exec sleep 10")

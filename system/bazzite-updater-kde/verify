@@ -5,12 +5,21 @@ export LD_LIBRARY_PATH="$root/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
 export QML_IMPORT_PATH="$root/lib/qml${QML_IMPORT_PATH:+:$QML_IMPORT_PATH}"
 # Reject a builder/runtime ABI mismatch before publishing the image.
 echo "updater verify: ABI check"
-if ! timeout --kill-after=3s 20s ldd -r "$root/bin/bazzite-updater" > /tmp/updater-ldd.log 2>&1; then
-    cat /tmp/updater-ldd.log
-    echo "updater verify: ABI check failed or timed out" >&2
-    exit 1
+binaries=("$root/bin/bazzite-updater")
+if [[ -d "$root/lib" ]]; then
+    while IFS= read -r -d '' library; do binaries+=("$library"); done < <(
+        find "$root/lib" -type f \( -name '*.so' -o -name '*.so.*' \) -print0
+    )
 fi
-if grep -E 'not found|undefined symbol' /tmp/updater-ldd.log; then exit 1; fi
+for binary in "${binaries[@]}"; do
+    echo "updater verify: link $binary"
+    if ! timeout --kill-after=3s 20s ldd -r "$binary" > /tmp/updater-ldd.log 2>&1; then
+        cat /tmp/updater-ldd.log
+        echo "updater verify: ABI check failed or timed out" >&2
+        exit 1
+    fi
+    if grep -E 'not found|undefined symbol' /tmp/updater-ldd.log; then exit 1; fi
+done
 # SDL normally converts SIGTERM to SDL_EVENT_QUIT; this Qt smoke test does not
 # consume SDL quit events. Let timeout terminate only this test process normally.
 export SDL_NO_SIGNAL_HANDLERS=1
