@@ -48,6 +48,7 @@ RUN chmod +x /tmp/build.sh && \
     install -m0755 /tmp/kde-updater-launch /usr/bin/bazzite-updater && \
     timeout --kill-after=5s 45s bash /tmp/kde-updater-verify && \
     test -x /usr/bin/bazzite-updater && \
+    timeout --kill-after=5s 45s bash /usr/share/james-os/piper-kirigami/verify-image.sh && \
     echo "image finalize: remove temporary files" && \
     timeout --kill-after=5s 60s rm -rf /var/cache/dnf /tmp/* && \
     echo "image finalize: bootc lint" && \

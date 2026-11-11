@@ -1,70 +1,68 @@
-# Piper Kirigami for JamesOS
+# Piper Kirigami signed update channel
 
-JamesOS installs the tested development Flatpak from
-[jheinem1/piper-kirigami](https://github.com/jheinem1/piper-kirigami).
-`release.json` pins its public release tag, source commit, bundle SHA-256 and
-installed Flatpak commit. This is an actively developed Qt 6/Kirigami frontend,
-not an official upstream Piper release.
+JamesOS supplies `james-os-install-piper`, which subscribes the desktop user to
+Piper's signed Flatpak repository. It installs the latest published release, not
+a fixed application commit. Subsequent releases arrive with normal Flatpak
+updates (including Discover and `flatpak update --user`). Updating JamesOS itself
+is not required for a new Piper release.
 
-## Install or update
+## Provisioning status
 
-Run `james-os-install-piper` as your desktop user, or
-`bash system/usr_bin__james-os-install-piper` from this checkout.
-The x86_64 bundle uses KDE Platform 6.11; Flatpak downloads that runtime from
-Flathub when needed. Use the existing user Flathub remote on JamesOS. No Builder, SDK, native RPM layering or reboot is required.
+This integration is prepared but is **not ready to ship**. The publisher must
+configure GitHub Pages and the signing secret, publish and test its repository,
+then add the verified public key as `piper-repository.gpg` and its uppercase
+primary fingerprint to `repository.json`. Until then, both installer and final
+image verification fail closed. Never disable signature verification to bypass
+this gate, and never put the private signing key in this repository.
 
-The installer verifies the downloaded checksum before making changes, backs up
-existing user Piper bundles and launchers, then installs the pinned Qt commit.
-It leaves GTK Piper installed. The new Qt launcher is visible in the app menu;
-a user override makes existing GTK Piper favorites open Qt and hides the duplicate
-GTK menu entry. Close and reopen Piper after updating.
-On a running KDE Plasma desktop, exact Piper taskbar pins are also redirected
-through Plasma's live API, including pins that reference the old exported file
-directly. Other pinned apps and their order are preserved. Previous pin values
-are saved in `plasma-launchers.json` in the private backup directory.
+The planned remote is `piper-kirigami` at
+`https://jheinem1.github.io/piper-kirigami/repo/`. The app keeps the exact identity
+`io.github.jheinem1.PiperKirigami/x86_64/development`; `development` names its
+existing update channel, not a fixed version. Only tested published releases
+should advance that channel. KDE Platform 6.11 remains a runtime dependency.
 
-Backups are private directories under `~/.local/state/james-os/piper/before-qt-*`.
-They include the original launchers and GTK saved-profile library if present.
-No device bindings are imported or written, ratbagd is not restarted, and the
-desktop theme is not changed. The OS image continues to supply ratbagd 0.18 or
-later; installing the user Flatpak is an explicit action.
+## Install and migrate an existing bundle
 
-Normal/G-Shift bindings use the existing G600 state. Qt Profiles currently means
-on-device slots; the GTK saved-profile library is retained, but Qt does not yet
-provide its saved-profile import/export UI. Physical writes and firmware
-persistence remain outside the read-only deployment verification.
+Run `james-os-install-piper` as your desktop user, without sudo. The installer
+checks the bundled public key, refuses existing remotes with another URL or key
+or disabled signature verification, and asks Flatpak to verify the signed remote.
+It backs up existing Piper bundles, launchers and the GTK saved-profile library,
+then reinstalls the same app identity from the named remote. It never uses
+`--delete-data`; the existing app's private directory and mouse state remain.
+The installed origin must match the update remote before launcher activation.
+
+After installation, the installer checks matching Qt/PySide/Shiboken versions and
+renders the actual installed mock UI. Failure leaves launchers and private
+backups unchanged, although the new application may remain installed. GTK Piper
+remains available for rollback. No ratbagd restart, device write, shared-runtime
+downgrade or desktop-theme change is performed.
+
+Backups live in private `~/.local/state/james-os/piper/before-qt-*` directories.
+They contain the previous bundles and launchers, copied profile library,
+repository metadata, remote information, installed commit and runtime evidence.
+Piper's app ID and Flatpak branch stay unchanged to preserve data and updates.
 
 ## Rollback
 
-Close Piper. Launch the preserved GTK build directly:
+Close Piper and launch the preserved GTK application with
+`flatpak run org.freedesktop.Piper/x86_64/master`. Restore the saved GTK user
+launcher if present; otherwise remove only the generated launcher override
+identified by `X-JamesOS-Piper-redirect=true`. For migrated taskbar favorites,
+repin GTK Piper; prior pin targets are recorded in `plasma-launchers.json`.
 
-```sh
-flatpak run org.freedesktop.Piper/x86_64/master
-```
+A saved application bundle can be restored with
+`flatpak install --user --reinstall /path/to/backup/Piper-bundle.flatpak`.
+This may return the app to a bundle origin; rerun the installer when ready to
+resume the signed update channel. Do not import device profiles merely to roll
+back the frontend. Existing private profile data is not deleted by installation.
 
-To restore its menu/favorite behavior, remove only the generated
-`~/.local/share/applications/org.freedesktop.Piper.desktop` override, identified
-by `X-JamesOS-Piper-redirect=true`. If the backup contains
-`applications/org.freedesktop.Piper.desktop`, restore that previous user override
-instead. The original saved-profile directory remains untouched.
-If the taskbar pin was migrated, unpin Piper Kirigami and pin the preserved GTK
-launcher again. The backup's `plasma-launchers.json` records its previous target.
+## Verification boundary
 
-If an application bundle needs restoring, use the appropriate `.flatpak` file
-from the printed backup directory:
-
-```sh
-flatpak install --user --reinstall /path/to/backup/Piper-bundle.flatpak
-```
-
-The previous GTK source recipe is also available through
-`james-os-install-piper-gtk`; see [the GTK recipe](../piper-g600/README.md).
-Do not import saved device profiles merely to roll back the application.
-
-## Maintenance
-
-Build and test the selected Piper source commit, including the installed-runtime
-smoke checks. Publish the exact CI artifact and checksums, then update all pins
-in `release.json` together. Test this installer with isolated command fixtures
-and verify real G600 properties before/after UI inspection without pressing Apply.
-Keep private device snapshots, backups and screenshots outside this repository.
+The final image verifies its installer, trust configuration, required commands
+and libratbag 0.18+ package, without starting ratbagd. Target-side runtime checks
+run during initial installation/migration. Ordinary later Flatpak updates do not
+invoke this installer or its backup/runtime hooks; release CI must test each
+published build against its matching Platform runtime. Independently updated
+Qt runtimes can still require a matched Piper release rebuild. Physical hardware
+writes, firmware persistence and live-desktop update migration need separate
+verification in a disposable test account before rollout.

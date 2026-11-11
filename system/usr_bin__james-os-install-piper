@@ -1,30 +1,14 @@
 #!/usr/bin/env bash
-# Install the tested Qt Piper release for this desktop user. No device writes.
+# Subscribe this desktop user to signed Piper releases. No device writes.
 set -euo pipefail
 umask 077
 script_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 assets="$script_dir/piper-kirigami"
-[[ -f "$assets/release.json" ]] || assets=/usr/share/james-os/piper-kirigami
-[[ -f "$assets/release.json" ]] || { echo 'Piper release metadata is missing.' >&2; exit 1; }
-mapfile -t release < <(python3 - "$assets/release.json" <<'PY'
-import json, re, sys
-r = json.load(open(sys.argv[1]))
-assert r['app_id'] == 'io.github.jheinem1.PiperKirigami'
-assert re.fullmatch(r'v[0-9][0-9A-Za-z._-]*', r['tag'])
-assert re.fullmatch(r'[0-9a-f]{64}', r['sha256'])
-assert re.fullmatch(r'[0-9a-f]{64}', r['flatpak_commit'])
-assert re.fullmatch(r'[0-9a-f]{40}', r['source_commit'])
-for key in ('tag', 'sha256', 'flatpak_commit', 'source_commit'):
-    print(r[key])
-PY
-)
-[[ ${#release[@]} == 4 ]] || { echo 'Invalid Piper release metadata.' >&2; exit 1; }
-tag=${release[0]}
-sha256=${release[1]}
-expected_commit=${release[2]}
-source_commit=${release[3]}
+[[ -f "$assets/repository.json" ]] || assets=/usr/share/james-os/piper-kirigami
+[[ -f "$assets/repository.json" ]] || { echo 'Piper repository metadata is missing.' >&2; exit 1; }
 if [[ "${1:-}" == --version ]]; then
-  printf 'Piper Kirigami %s (source %s)\n' "$tag" "$source_commit"
+  python3 "$assets/verify-repository.py" "$assets" >/dev/null
+  printf 'Piper Kirigami signed update channel: development (latest published release)\n'
   exit 0
 fi
 if (( $# )); then
@@ -33,7 +17,7 @@ if (( $# )); then
 fi
 (( EUID != 0 )) || { echo 'Run as your desktop user, without sudo.' >&2; exit 1; }
 [[ $(uname -m) == x86_64 ]] || { echo 'This tested Piper bundle requires x86_64.' >&2; exit 1; }
-for command_name in flatpak flock curl sha256sum python3; do
+for command_name in flatpak flock python3 timeout gpg; do
   command -v "$command_name" >/dev/null || { echo "Missing dependency: $command_name" >&2; exit 1; }
 done
 app=io.github.jheinem1.PiperKirigami
@@ -46,10 +30,18 @@ exec 9>"$state_root/install.lock"
 flock -n 9 || { echo 'Another Piper installation is running.' >&2; exit 1; }
 work=$(mktemp -d "$cache_root/download.XXXXXXXX")
 trap 'rm -rf -- "$work"' EXIT
-bundle="$work/$app-x86_64-$branch.flatpak"
-curl --proto '=https' --tlsv1.2 --fail --location --retry 3 \
-  "https://github.com/jheinem1/piper-kirigami/releases/download/$tag/$app-x86_64-$branch.flatpak" -o "$bundle"
-printf '%s  %s\n' "$sha256" "$bundle" | sha256sum --check --status || { echo 'Piper bundle checksum mismatch; nothing installed.' >&2; exit 1; }
+mapfile -t repository < <(python3 "$assets/verify-repository.py" "$assets" "$data_root/flatpak/repo")
+[[ ${#repository[@]} == 7 ]] || { echo 'Piper repository is not trusted; nothing installed.' >&2; exit 1; }
+remote=${repository[0]}
+url=${repository[1]}
+# Validate trust before backup/install. Do not silently replace another remote.
+if [[ ${repository[6]} == absent ]]; then
+  flatpak remote-add --user --gpg-import="$assets/${repository[5]}" "$remote" "$url"
+fi
+mapfile -t verified < <(python3 "$assets/verify-repository.py" "$assets" "$data_root/flatpak/repo")
+[[ ${#verified[@]} == 7 && ${verified[6]} == present ]] || { echo 'Signed Piper remote was not configured.' >&2; exit 1; }
+# This refresh verifies the signed summary and ensures the app is available.
+flatpak remote-info --user "$remote" "$app/x86_64/$branch" > "$work/remote-info.txt"
 
 # Back up both app identities, launchers and the private GTK saved-profile library.
 # Keep GTK installed so rollback does not depend on a runtime download.
@@ -70,12 +62,22 @@ for desktop in org.freedesktop.Piper.desktop "$app.desktop"; do
 done
 profile_library="$HOME/.var/app/org.freedesktop.Piper/data/piper/profiles"
 if [[ -d "$profile_library" ]]; then cp -a -- "$profile_library" "$backup/profile-library"; fi
-cp -- "$assets/release.json" "$backup/new-release.json"
+cp -- "$assets/repository.json" "$backup/repository.json"
+cp -- "$work/remote-info.txt" "$backup/remote-info.txt"
 printf 'Previous Piper and private profile files saved to %s\n' "$backup"
 
-flatpak install --user --noninteractive --reinstall "$bundle"
-actual_commit=$(flatpak info --user --show-commit "$app/x86_64/$branch")
-[[ "$actual_commit" == "$expected_commit" ]] || { echo 'Installed Piper commit mismatch; launcher was not replaced.' >&2; exit 1; }
+# Reinstall from the named origin to move a standalone bundle onto normal
+# Flatpak updates. No --delete-data: the same app ID retains its private data.
+flatpak install --user --noninteractive --reinstall "$remote" "$app/x86_64/$branch"
+actual_origin=$(flatpak info --user --show-origin "$app/x86_64/$branch")
+[[ "$actual_origin" == "$remote" ]] || { echo 'Installed Piper origin mismatch; launcher was not replaced.' >&2; exit 1; }
+flatpak info --user --show-commit "$app/x86_64/$branch" > "$backup/installed-commit.txt"
+# A valid bundle can still fail after a shared KDE runtime update. Check the
+# actual installed Platform runtime before changing any launcher or taskbar pin.
+if ! bash "$assets/verify-runtime.sh" "$backup/runtime-verification"; then
+  echo 'Piper runtime compatibility check failed; launchers were not changed. GTK Piper and rollback backups remain available.' >&2
+  exit 1
+fi
 exported="$data_root/flatpak/exports/share/applications/$app.desktop"
 [[ -s "$exported" ]] || { echo 'Installed Piper launcher is missing.' >&2; exit 1; }
 mkdir -p "$data_root/applications"
@@ -97,5 +99,6 @@ if command -v update-desktop-database >/dev/null; then update-desktop-database "
 if ! python3 "$assets/migrate-plasma-launcher.py" "$backup"; then
   echo 'Piper is installed; repin a direct-file taskbar shortcut to Piper Kirigami if needed.' >&2
 fi
-printf 'Installed Piper Kirigami %s. Close and reopen Piper.\nRollback files: %s\n' "$tag" "$backup"
+printf 'Installed Piper Kirigami from its signed update channel. Close and reopen Piper.\nRollback files: %s\n' "$backup"
+printf 'Future releases arrive through normal Flatpak updates.\n'
 printf 'Mouse settings and the saved-profile library were not changed. GTK Piper remains installed for rollback.\n'
