@@ -13,7 +13,7 @@ class VencordBundleTests(unittest.TestCase):
     def test_pin_and_complete_overlay(self):
         build = (ROOT / "build.sh").read_text()
         self.assertRegex(build, r'VENCORD_REF="[0-9a-f]{40}"')
-        self.assertIn('VENCORD_TAG="v1.15.16"', build)
+        self.assertIn('VENCORD_TAG="v1.15.17"', build)
         self.assertIn('cp -a /tmp/vencord-overlay/src/. /tmp/Vencord/src/', build)
         self.assertIn('/usr/share/vencord/james-os-version.txt', build)
         for path in (

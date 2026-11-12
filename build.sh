@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-VENCORD_REF="383409e6a6ec9008ee8a7496500f1e75f17824d1"
-VENCORD_TAG="v1.15.16"
+VENCORD_REF="795ed0ff5b7e6b8db7488d0fcc95512a58edc919"
+VENCORD_TAG="v1.15.17"
 DISCORD_RPM_URL="https://discord.com/api/download?platform=linux&format=rpm"
 DISCORD_VOICE_COMPAT_URL="https://stable.dl2.discordapp.net/distro/app/stable/linux/x64/1.0.152/discord_voice/1/full.distro"
 DISCORD_VOICE_COMPAT_DISTRO_SHA256="8b9a003dfd5efc5303d04ea72176b15d6c42fd558104e444310c5668c524bf1b"
@@ -338,10 +338,13 @@ rm -f \
   /usr/lib/systemd/user/discord-flatpak-rpc-bridge.socket \
   /usr/lib/systemd/user/discord-flatpak-rpc-bridge.service
 
-# Discord's RPM desktop file uses Icon=discord but does not install that icon
-# into the theme search path. Provide a stable hicolor entry when Discord exists.
-mkdir -p /usr/share/icons/hicolor/256x256/apps
-ln -sfn /usr/share/discord/discord.png /usr/share/icons/hicolor/256x256/apps/discord.png
+# Current RPMs own the hicolor icon directly. Never replace that payload with
+# a symlink to the legacy /usr/share/discord layout (absent in bootstrap RPMs).
+discord_icon=/usr/share/icons/hicolor/256x256/apps/discord.png
+if [[ ! -s "$discord_icon" && -s /usr/share/discord/discord.png ]]; then
+  install -Dm0644 /usr/share/discord/discord.png "$discord_icon"
+fi
+test -s "$discord_icon"
 
 ###############################################################################
 # Build Vencord with the James OS plugins for updater-managed Discord installs
