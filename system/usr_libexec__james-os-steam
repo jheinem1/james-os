@@ -1,0 +1,70 @@
+#!/usr/bin/python3
+"""Launch the packaged Steam bootstrap with Plasma's XWayland UI scale."""
+
+import json
+import math
+import os
+import subprocess
+import sys
+
+
+STEAM_BOOTSTRAP = "/usr/lib/steam/bin_steam.sh"
+
+
+def desktop_scale(args):
+    desktop = os.environ.get("XDG_CURRENT_DESKTOP", "").upper().split(":")
+    if (
+        os.environ.get("XDG_SESSION_TYPE") != "wayland"
+        or "KDE" not in desktop
+        or os.environ.get("SteamDeck") == "1"
+        or os.environ.get("STEAM_FORCE_DESKTOPUI_SCALING")
+        or any(
+            arg in ("-forcedesktopscaling", "-steamdeck", "-gamepadui", "-tenfoot")
+            or arg.startswith("-forcedesktopscaling=")
+            for arg in args
+        )
+    ):
+        return None
+
+    try:
+        # Honor Plasma's alternative mode where the compositor scales X11 apps.
+        clients_scale = subprocess.run(
+            [
+                "kreadconfig6", "--file", "kdeglobals", "--group", "KScreen",
+                "--key", "XwaylandClientsScale", "--default", "true",
+            ],
+            check=True, capture_output=True, text=True, timeout=2,
+        ).stdout.strip().lower()
+        if clients_scale != "true":
+            return None
+        result = subprocess.run(
+            ["kscreen-doctor", "-j"],
+            check=True, capture_output=True, text=True, timeout=2,
+        )
+        outputs = json.loads(result.stdout)["outputs"]
+        scales = [
+            float(output["scale"])
+            for output in outputs
+            if output.get("enabled") and output.get("connected")
+        ]
+        if not scales or not all(math.isfinite(scale) and scale > 0 for scale in scales):
+            return None
+        # KWin uses the maximum enabled output scale for its shared X11 space.
+        scale = max(scales)
+        return format(scale, "g") if scale > 1 else None
+    except (OSError, subprocess.SubprocessError, ValueError, KeyError, TypeError, AttributeError):
+        # Missing tools, a session not ready yet, or invalid output must not block Steam.
+        return None
+
+
+def main():
+    args = sys.argv[1:]
+    scale = desktop_scale(args)
+    if scale is not None:
+        os.environ["STEAM_FORCE_DESKTOPUI_SCALING"] = scale
+    # Keep Valve's bootstrap at its original path, including its packaged data.
+    os.execv(STEAM_BOOTSTRAP, [STEAM_BOOTSTRAP, *args])
+
+
+if __name__ == "__main__":
+    main()

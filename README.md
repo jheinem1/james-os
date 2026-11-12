@@ -14,6 +14,7 @@ A [Fedora Atomic](https://fedoraproject.org/atomic-desktops) image built with [U
 - Adds an Open With action in Dolphin to encode videos for Discord using CPU H.264 with a target-size popup and progress bar.
 - Installs Discord from the official RPM at image build time, patches it with a pinned Vencord build when app resources are available, and includes a KDE idle/lock watcher that can drive Discord presence over a local socket.
 - Includes a KDE user service that automatically reapplies the right HDR display configuration after a KVM reconnect on the default dual-monitor setup.
+- Applies Plasma's display scale to the Steam desktop client even when it starts from a KRunner game search or command line.
 
 ## How to use
 
@@ -61,6 +62,23 @@ If an existing MCP configuration explicitly sets
 example `/var/home/<user>/.codex` on Bazzite). An explicit MCP environment override
 takes precedence over the launcher environment. Reconnect the helper after
 changing that override. This fix preserves browser permission enforcement.
+
+## Steam desktop scaling
+
+On Plasma Wayland, the image's `steam` command sets Steam's desktop UI scale
+from the enabled displays when legacy applications apply scaling themselves.
+This covers KRunner game launches and Steam URLs as well as the application
+menu. It uses the maximum enabled display scale, matching KWin's shared
+XWayland coordinate space; mixed-scale monitors share one Steam UI scale.
+
+An explicit `STEAM_FORCE_DESKTOPUI_SCALING` or `-forcedesktopscaling` takes
+precedence. The launcher leaves other desktops, X11 sessions, Game Mode, and
+Plasma's compositor-scaled legacy-app mode alone. If display information is
+unavailable, it launches Steam with its normal scaling behavior. Valve's
+packaged bootstrap stays in place.
+
+The fix takes effect after booting the updated image and fully exiting and
+reopening Steam. It does not resize an already-running Steam instance.
 
 ## KVM display recovery
 

@@ -66,6 +66,13 @@ dnf5 install -y \
   oxygen-icon-theme
 
 ###############################################################################
+# Apply Steam UI scaling for every launcher, including KRunner game searches
+###############################################################################
+# Replace only the command symlink; retain Valve's packaged bootstrap in place.
+test -x /usr/lib/steam/bin_steam.sh
+ln -sfn ../libexec/james-os-steam /usr/bin/steam
+
+###############################################################################
 # Install OpenAI's official ChatGPT desktop app (including Work and Codex)
 ###############################################################################
 curl -fL "${CHATGPT_RPM_URL}" -o /tmp/chatgpt.rpm
