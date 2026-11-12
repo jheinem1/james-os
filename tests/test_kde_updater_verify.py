@@ -8,8 +8,8 @@ SOURCE = pathlib.Path(__file__).resolve().parents[1] / 'system/bazzite-updater-k
 
 
 class VerifyTests(unittest.TestCase):
-    def check_case(self, app, ldd='exit 0', expected=False, library=False):
-        with tempfile.TemporaryDirectory() as tmp:
+    def check_case(self, app, ldd='exit 0', expected=False, library=False, suffix=None):
+        with tempfile.TemporaryDirectory(suffix=suffix) as tmp:
             root = pathlib.Path(tmp)
             (root / 'bin').mkdir()
             if library:
@@ -20,10 +20,13 @@ class VerifyTests(unittest.TestCase):
                 file = root / 'bin' / name
                 file.write_text('#!/usr/bin/bash\n' + body + '\n')
                 file.chmod(0o755)
-            script = SOURCE.read_text().replace('/usr/lib/bazzite-updater-kde', tmp)
+            # Shorten test timeouts before inserting paths: random directory names
+            # can contain duration strings such as '3s', which must remain intact.
+            script = SOURCE.read_text()
+            script = script.replace('20s', '0.2s').replace('8s', '0.2s').replace('3s', '0.2s')
+            script = script.replace('/usr/lib/bazzite-updater-kde', tmp)
             script = script.replace('/usr/bin/bazzite-updater', str(root / 'bin/app'))
             script = script.replace('/tmp/updater-', tmp + '/updater-')
-            script = script.replace('20s', '0.2s').replace('8s', '0.2s').replace('3s', '0.2s')
             script = script.replace('ldd -r', str(root / 'bin/ldd') + ' -r')
             result = subprocess.run(['bash', '-c', script], capture_output=True, text=True, timeout=3)
             self.assertEqual(result.returncode == 0, expected, result.stdout + result.stderr)
@@ -31,6 +34,11 @@ class VerifyTests(unittest.TestCase):
 
     def test_success(self):
         self.check_case('exec sleep 10', expected=True)
+
+    def test_timeout_strings_in_temporary_paths_are_preserved(self):
+        for suffix in ('3s', '8s', '20s'):
+            with self.subTest(suffix=suffix):
+                self.check_case('exec sleep 10', expected=True, suffix=suffix)
 
     def test_sdl_signal_handler_is_disabled(self):
         self.check_case('[[ ${SDL_NO_SIGNAL_HANDLERS:-} == 1 ]] || trap "" TERM; exec sleep 10', expected=True)
