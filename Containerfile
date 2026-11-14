@@ -9,6 +9,7 @@ COPY --from=updater-package /out/usr/lib/bazzite-updater-kde /usr/lib/bazzite-up
 COPY system/bazzite-updater-kde/launch /tmp/kde-updater-launch
 COPY system/bazzite-updater-kde/verify /tmp/kde-updater-verify
 COPY build.sh /tmp/build.sh
+COPY --chmod=0755 system/usr_bin__james-os-filter-flatpaks /usr/bin/james-os-filter-flatpaks
 COPY vencord-overlay /tmp/vencord-overlay
 ENV GNUPGHOME=/var/tmp/gnupg
 

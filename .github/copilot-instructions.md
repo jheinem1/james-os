@@ -5,13 +5,14 @@
 James OS is a custom Fedora Atomic Desktop image built using Universal Blue's toolkit, based on Bazzite. It provides a customized immutable Linux desktop experience with specific software pre-installed for productivity and gaming.
 
 **Key Features:**
-- Replaces Bazaar with KDE Discover for software management
+- Keeps Bazzite's Bazaar software manager
 - Replaces GNOME Disk Utility with KDE Partition Manager
 - Pre-installs 1Password and its CLI for password management
-- Pre-installs Visual Studio Code for development
-- Adds Konsole and Yakuake terminal emulators alongside ptyxis
+- Pre-installs OpenAI's ChatGPT desktop app, including Work and Codex
+- Adds Konsole and Yakuake terminal emulators
 - Includes the libratbag/ratbagd device-configuration backend and CoreCtrl for power management
-- Pre-installs Discord RPM
+- Pre-installs Discord RPM with Vencord and KDE idle integration
+- Excludes four opted-out Flatpaks from default provisioning without blocking explicit installation
 
 ## Tech Stack
 
@@ -43,13 +44,13 @@ The image is built from the Containerfile which:
 1. Starts from `ghcr.io/ublue-os/bazzite:stable`
 2. Copies `build.sh` and system configuration files
 3. Executes `build.sh` to install packages and configure the system
-4. Commits the ostree container
+4. Validates/finalizes the container using the Containerfile's final check
 
 ### Build Script (`build.sh`)
 The build.sh script:
-- Adds third-party repositories (1Password, VS Code, Discord)
+- Adds the 1Password repository and downloads official ChatGPT and Discord RPMs
 - Installs desired packages via DNF5
-- Removes unwanted packages (gnome-disk-utility, bazaar, lutris)
+- Removes unwanted RPMs (gnome-disk-utility, lutris) and filters opted-out default Flatpaks
 - Relocates 1Password from `/var/opt` to `/usr/lib` for ostree compatibility
 - Sets up proper permissions and groups for 1Password security
 - Creates sysusers and tmpfiles configuration for 1Password
@@ -93,7 +94,7 @@ Use the `just` command to run common tasks:
 ### Container Best Practices
 - Minimize layers by chaining commands with `&&`
 - Clean up caches and temporary files: `rm -rf /var/cache/dnf /tmp/*`
-- Commit ostree container at the end: `ostree container commit`
+- Validate the bootc image at the end: `bootc container lint`
 - Use `COPY --chmod` for file permissions when possible
 
 ## Common Workflows
@@ -158,7 +159,7 @@ The GitHub Actions workflow (`.github/workflows/build.yml`):
 2. Create a VM image (QCOW2 or ISO)
 3. Boot the VM and verify:
    - All expected packages are installed
-   - Software centers work (KDE Discover)
+   - Software center works (Bazaar)
    - Pre-installed applications launch correctly
    - System boots and operates normally
 
