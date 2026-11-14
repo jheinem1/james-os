@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-VENCORD_REF="cba0eb9897419432e68277b0b60c301a6f8323cf"
-VENCORD_TAG="v1.14.6"
+VENCORD_REF="795ed0ff5b7e6b8db7488d0fcc95512a58edc919"
+VENCORD_TAG="v1.15.17"
 DISCORD_RPM_URL="https://discord.com/api/download?platform=linux&format=rpm"
 CHATGPT_RPM_URL="https://persistent.oaistatic.com/codex-app-prod/linux/rpm/latest/chatgpt.x86_64.rpm"
 # 26.908.31748 can fail to load AppRoutes with "n is not a function", even
@@ -54,6 +54,7 @@ dnf5 install -y \
   npm \
   patch \
   yakuake \
+  xdpyinfo \
   corectrl \
   kde-partitionmanager \
   plasma-oxygen \
@@ -104,6 +105,31 @@ cat > /usr/bin/discord <<'EOF'
 # xdg-open needs this on Plasma 6 or it falls back to the removed kfmclient.
 export KDE_SESSION_VERSION="6"
 export KDE_FULL_SESSION="true"
+
+# Wait for Plasma/Xwayland before native discord_utils calls XOpenDisplay.
+export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
+export WAYLAND_DISPLAY="${WAYLAND_DISPLAY:-wayland-0}"
+export DISPLAY="${DISPLAY:-:0}"
+export DBUS_SESSION_BUS_ADDRESS="${DBUS_SESSION_BUS_ADDRESS:-unix:path=$XDG_RUNTIME_DIR/bus}"
+export XDG_SESSION_TYPE="${XDG_SESSION_TYPE:-wayland}"
+export XDG_CURRENT_DESKTOP="${XDG_CURRENT_DESKTOP:-KDE}"
+case "$WAYLAND_DISPLAY" in
+    /*) wayland_socket=$WAYLAND_DISPLAY ;;
+    *) wayland_socket=$XDG_RUNTIME_DIR/$WAYLAND_DISPLAY ;;
+esac
+remaining=120
+while [ "$remaining" -gt 0 ]; do
+    if { [ "$XDG_SESSION_TYPE" != wayland ] || [ -S "$wayland_socket" ]; } \
+        && timeout 1 xdpyinfo -display "$DISPLAY" >/dev/null 2>&1; then
+        break
+    fi
+    remaining=$((remaining - 1))
+    sleep 1
+done
+if [ "$remaining" -eq 0 ]; then
+    echo "Discord startup deferred: graphical session was not ready" >&2
+    exit 3
+fi
 
 CHANNEL=stable
 DOWNLOAD=https://updates.discord.com/
@@ -217,30 +243,33 @@ rm -f \
   /usr/lib/systemd/user/discord-flatpak-rpc-bridge.socket \
   /usr/lib/systemd/user/discord-flatpak-rpc-bridge.service
 
-# Discord's RPM desktop file uses Icon=discord but does not install that icon
-# into the theme search path. Provide a stable hicolor entry when Discord exists.
-mkdir -p /usr/share/icons/hicolor/256x256/apps
-ln -sfn /usr/share/discord/discord.png /usr/share/icons/hicolor/256x256/apps/discord.png
+# Current RPMs own the hicolor icon directly. Never replace that payload with
+# a symlink to the legacy /usr/share/discord layout (absent in bootstrap RPMs).
+discord_icon=/usr/share/icons/hicolor/256x256/apps/discord.png
+if [[ ! -s "$discord_icon" && -s /usr/share/discord/discord.png ]]; then
+  install -Dm0644 /usr/share/discord/discord.png "$discord_icon"
+fi
+test -s "$discord_icon"
 
 ###############################################################################
-# Build Vencord with the KDE idle plugin for updater-managed Discord installs
+# Build Vencord with the James OS plugins for updater-managed Discord installs
 ###############################################################################
 git clone --depth=1 --branch "${VENCORD_TAG}" https://github.com/Vendicated/Vencord.git /tmp/Vencord
 git -C /tmp/Vencord checkout "${VENCORD_REF}"
-mkdir -p /tmp/Vencord/src/plugins/kdeIdleSync.discordDesktop
-cp /tmp/vencord-overlay/src/plugins/kdeIdleSync.discordDesktop/index.ts /tmp/Vencord/src/plugins/kdeIdleSync.discordDesktop/index.ts
-cp /tmp/vencord-overlay/src/plugins/kdeIdleSync.discordDesktop/native.ts /tmp/Vencord/src/plugins/kdeIdleSync.discordDesktop/native.ts
+cp -a /tmp/vencord-overlay/src/. /tmp/Vencord/src/
 export HOME=/tmp
 export XDG_CONFIG_HOME=/tmp/.config
 export XDG_DATA_HOME=/tmp/.local/share
 export npm_config_cache=/tmp/npm-cache
 export npm_config_prefix=/tmp/npm-global
-npm install -g pnpm@10.4.1
+npm install -g pnpm@12.15.0
 export PATH="/tmp/npm-global/bin:${PATH}"
 (
   cd /tmp/Vencord
   pnpm install --frozen-lockfile
-  pnpm build
+  pnpm build --dev --disable-updater
+  printf '%s\n' "${VENCORD_TAG} ${VENCORD_REF}" > dist/james-os-version.txt
+  install -Dm0644 dist/james-os-version.txt /usr/share/vencord/james-os-version.txt
   install -Dm0644 dist/patcher.js /usr/share/vencord/patcher.js
   install -Dm0644 dist/preload.js /usr/share/vencord/preload.js
   install -Dm0644 dist/renderer.js /usr/share/vencord/renderer.js

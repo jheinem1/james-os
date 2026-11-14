@@ -7,8 +7,8 @@ A [Fedora Atomic](https://fedoraproject.org/atomic-desktops) image built with [U
 - Removes Lutris.
 - Excludes DistroShelf, Warehouse, Flatseal, and Gear Lever from default Flatpak provisioning. Explicit installation remains available. Existing installations are not uninstalled by image updates.
 - Preinstalls 1Password and the 1Password CLI.
-- Adds Konsole and Yakuake as terminal options.
-- Launches the System Update shortcut in Konsole and preinstalls OpenAI's official ChatGPT desktop app, including ChatGPT Work and Codex.
+- Adds back Konsole as a terminal option and Yakuake to complement it (ptyxis remains the default for compatibility with some Bazzite features).
+- Launches the System Update shortcut in the Bazzite Updater GUI and preinstalls OpenAI's official ChatGPT desktop app, including ChatGPT Work and Codex.
 - Keeps Homebrew formula upgrades working in both automatic and manual System Update runs by preserving Homebrew's prefix entrypoint through uupd's user switch.
 - Preinstalls the libratbag/ratbagd backend and includes `james-os-install-piper` to install a tested, pinned Piper Kirigami Flatpak with G600 Normal/G-Shift layers and native KDE styling. The earlier GTK build remains available for rollback. See [Piper installation and rollback](system/piper-kirigami/README.md).
 - Preinstalls CoreCtrl for power management.

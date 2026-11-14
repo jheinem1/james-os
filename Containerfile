@@ -1,5 +1,13 @@
+# Fetch and validate a pinned native package without installing build dependencies.
+FROM ghcr.io/ublue-os/bazzite:stable AS updater-package
+COPY system/bazzite-updater-kde /tmp/kde-updater
+RUN python3 /tmp/kde-updater/acquire.py --lock /tmp/kde-updater/package.json --destination /out
+
 FROM ghcr.io/ublue-os/bazzite:stable
 
+COPY --from=updater-package /out/usr/lib/bazzite-updater-kde /usr/lib/bazzite-updater-kde
+COPY system/bazzite-updater-kde/launch /tmp/kde-updater-launch
+COPY system/bazzite-updater-kde/verify /tmp/kde-updater-verify
 COPY build.sh /tmp/build.sh
 COPY --chmod=0755 system/usr_bin__james-os-filter-flatpaks /usr/bin/james-os-filter-flatpaks
 COPY vencord-overlay /tmp/vencord-overlay
@@ -36,7 +44,14 @@ COPY --chmod=0644 system/usr_share_applications__system-update.desktop /usr/shar
 RUN chmod +x /tmp/build.sh && \
     mkdir -p "$GNUPGHOME" /var/lib/alternatives && chmod 700 "$GNUPGHOME" && \
     /tmp/build.sh && \
-    rm -rf /var/cache/dnf /tmp/* && \
-    bootc container lint
+    echo "image finalize: install updater launcher" && \
+    install -Dm0755 /usr/bin/bazzite-updater /usr/libexec/bazzite-updater-upstream && \
+    install -m0755 /tmp/kde-updater-launch /usr/bin/bazzite-updater && \
+    timeout --kill-after=5s 45s bash /tmp/kde-updater-verify && \
+    test -x /usr/bin/bazzite-updater && \
+    echo "image finalize: remove temporary files" && \
+    timeout --kill-after=5s 60s rm -rf /var/cache/dnf /tmp/* && \
+    echo "image finalize: bootc lint" && \
+    timeout --kill-after=5s 60s bootc container lint
 
 LABEL org.opencontainers.image.source="https://github.com/jheinem1/james-os"
