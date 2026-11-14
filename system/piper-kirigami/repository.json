@@ -1,0 +1,9 @@
+{
+  "app_id": "io.github.jheinem1.PiperKirigami",
+  "branch": "development",
+  "architecture": "x86_64",
+  "remote": "piper-kirigami",
+  "url": "https://jheinem1.github.io/piper-kirigami/repo/",
+  "public_key": "piper-repository.gpg",
+  "gpg_fingerprint": "D5C33936E57050BC1B7A9210632AD854ECF1F599"
+}
