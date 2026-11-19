@@ -66,9 +66,9 @@ changing that override. This fix preserves browser permission enforcement.
 ## KVM display recovery
 
 The image starts `kvm-display-recover.service` with the KDE graphical session.
-It reapplies the right display's configured mode and HDR settings after a KVM
-reconnect. Defaults are in `/etc/kvm-display-recover.env`; per-user overrides
-can be placed in `~/.config/kvm-display-recover.env`.
+It reapplies the right display's configured mode and switches it to SDR after a
+KVM reconnect. The mode and layout defaults are in `/etc/kvm-display-recover.env`
+and can be overridden in `~/.config/kvm-display-recover.env`.
 
 Older setups may still have `kvm-focus-daemon.service` enabled in their home
 directory. Both watchers reset the same display, so running them together can
