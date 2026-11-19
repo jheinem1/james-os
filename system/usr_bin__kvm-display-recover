@@ -112,8 +112,8 @@ recover_target_output() {
     "output.${target_output}.scale.${scale}" \
     "output.${other_output_id}.priority.2" \
     "output.${target_output_id}.priority.1" \
-    "output.${target_output}.hdr.enable" \
-    "output.${target_output}.wcg.enable" >/dev/null
+    "output.${target_output}.hdr.disable" \
+    "output.${target_output}.wcg.disable" >/dev/null
 }
 
 handle_reconnect() {
