@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Restore a reconnected display only when KScreen still has its settings."""
+"""Report reconnects without overriding KDE display settings."""
 
 import hashlib
 import json
@@ -53,124 +53,44 @@ def read_state(connectors):
         return None
 
 
-def comparable_settings(output):
-    """Compare all exposed settings apart from enumeration and enabled state."""
-    matches = [mode for mode in output["modes"] if mode["id"] == output["currentModeId"]]
-    if len(matches) != 1:
-        raise ValueError("active mode is not uniquely identifiable")
-    mode = matches[0]
-    # Mirroring uses transient output IDs; don't guess at restoring it.
-    if output.get("replicationSource") or output.get("clones"):
-        raise ValueError("mirrored configuration")
-    # Refuse incomplete snapshots instead of assuming default display options.
-    for key in ("pos", "scale", "rotation"):
-        output[key]
-    metadata = {"id", "name", "connected", "enabled", "priority", "modes",
-                "currentModeId", "preferredModes", "clones", "replicationSource"}
-    settings = {key: value for key, value in output.items() if key not in metadata}
-    settings["mode"] = {key: value for key, value in mode.items() if key != "id"}
-    return settings
-
-
-def recovery_commands(target, before, after):
-    """Return an atomic KScreen update, or no update when preserve isn't safe."""
-    if not before or not after or before.keys() != after.keys() or target not in before:
-        return []
-    try:
-        if before[target]["enabled"] is not True or after[target]["enabled"] is not False:
-            return []
-        peers = before.keys() - {target}
-        if not any(before[p]["enabled"] is True for p in peers):
-            return []
-        if any(before[p]["enabled"] != after[p]["enabled"] for p in peers):
-            return []
-        if any(comparable_settings(before[k]) != comparable_settings(after[k]) for k in before):
-            return []
-        # After an unplug KDE compacts priorities. Restore previous ordering
-        # as part of the same apply, never in a separate transaction.
-        enabled = sorted((p for p in before if before[p]["enabled"] is True),
-                         key=lambda p: before[p]["priority"])
-        priorities = [before[p]["priority"] for p in enabled]
-        if priorities != list(range(1, len(priorities) + 1)):
-            return []
-        # KScreen could leave a user-reordered peer layout during an unplug;
-        # only accept an order matching the original with the target removed.
-        current_peer_order = sorted((p for p in enabled if p != target),
-                                    key=lambda p: after[p]["priority"])
-        if current_peer_order != [p for p in enabled if p != target]:
-            return []
-        ids = {p: after[p]["id"] for p in enabled}
-        if any(type(i) is not int or i <= 0 for i in ids.values()) or len(set(ids.values())) != len(ids):
-            return []
-        return [f"output.{ids[target]}.enable"] + [
-            f"output.{ids[p]}.priority.{before[p]['priority']}" for p in enabled
-        ]
-    except (KeyError, TypeError, ValueError):
-        return []
+def report_reconnect(target, topology, settle, attempts):
+    for _ in range(attempts):
+        time.sleep(settle)
+        live = drm_outputs()
+        if live is None or live.keys() != topology.keys():
+            return
+        state = read_state(live)
+        if state is not None and state[target].get("enabled") is True:
+            log(f"{live[target]} reconnected and is enabled; left unchanged")
+            return
+    # A configured disabled output and a failed automatic enable are
+    # indistinguishable through a delayed KScreen snapshot.
+    log(f"{topology[target]} reconnect did not yield a verified enabled output; left unchanged")
 
 
 def run():
     poll = float(os.getenv("KVM_DISPLAY_POLL_INTERVAL_SECONDS", "0.5"))
     settle = float(os.getenv("KVM_DISPLAY_SETTLE_DELAY_SECONDS", "0.8"))
     attempts = int(os.getenv("KVM_DISPLAY_SETTLE_ATTEMPTS", "12"))
-    # The hotplug poll is cheap sysfs I/O. Avoid spawning Qt at that rate.
-    snapshot_interval = max(poll, 15.0)
-    good_connectors = None
-    good_state = None
+    topology = None
     missing = None
-    next_snapshot = 0.0
-    log("started; waiting for an unambiguous display topology")
+    log("started; desktop display settings are managed by KDE")
     while True:
         connectors = drm_outputs()
         if connectors is None:
-            # A missing or ambiguous EDID breaks the chain of identification.
-            good_connectors = good_state = missing = None
-            next_snapshot = 0.0
-        elif good_connectors is not None and connectors.keys() < good_connectors.keys():
-            absent = good_connectors.keys() - connectors.keys()
+            topology = missing = None
+        elif topology is not None and connectors.keys() < topology.keys():
+            absent = topology.keys() - connectors.keys()
             candidate = next(iter(absent)) if len(absent) == 1 else False
             if missing is None:
                 missing = candidate
             elif missing != candidate:
                 missing = False
-        elif missing and good_connectors is not None and connectors.keys() == good_connectors.keys():
-            target = missing
+        else:
+            if missing and topology is not None and connectors.keys() == topology.keys():
+                report_reconnect(missing, connectors, settle, attempts)
+            topology = connectors
             missing = None
-            for _ in range(attempts):
-                time.sleep(settle)
-                live = drm_outputs()
-                if live is None or live.keys() != good_connectors.keys():
-                    break
-                current = read_state(live)
-                if current is None:
-                    continue
-                # An already enabled output means KDE restored the layout;
-                # never toggle it or override its configuration.
-                if current[target].get("enabled") is True:
-                    log(f"{live[target]} reconnected and is already enabled; left unchanged")
-                    break
-                commands = recovery_commands(target, good_state, current)
-                if commands and drm_outputs() == live:
-                    try:
-                        subprocess.run(["kscreen-doctor", *commands], check=True, timeout=8)
-                        log(f"re-enabled {live[target]} with its existing settings")
-                    except (OSError, subprocess.SubprocessError) as exc:
-                        log(f"could not re-enable {live[target]}: {exc}")
-                    break
-            else:
-                log(f"could not verify retained settings for {connectors[target]}; left unchanged")
-            # Never use a pre-unplug baseline for a future reconnect.
-            good_connectors = good_state = None
-            next_snapshot = 0.0
-        elif connectors:
-            if missing is not None or good_connectors != connectors:
-                good_connectors = good_state = missing = None
-                next_snapshot = 0.0
-            if time.monotonic() >= next_snapshot:
-                next_snapshot = time.monotonic() + snapshot_interval
-                state = read_state(connectors)
-                if state is not None and drm_outputs() == connectors:
-                    good_connectors, good_state = connectors, state
         time.sleep(poll)
 
 
