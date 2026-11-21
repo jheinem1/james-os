@@ -66,13 +66,11 @@ changing that override. This fix preserves browser permission enforcement.
 ## KVM display recovery
 
 The image starts `kvm-display-recover.service` with the KDE graphical session.
-It lets KDE restore the layout first and leaves already-enabled displays alone.
-If exactly one previously enabled display returns disabled, it can re-enable that
-same physical monitor only when its retained settings and the surrounding
-layout still match. It never selects a fixed resolution, refresh rate, position,
-scale, HDR, or wide color mode and never moves window focus. When the EDID,
-saved settings, or topology cannot be verified, use System Settings to recover
-the display manually.
+It observes reconnects and lets KDE restore the layout. It does not enable or
+disable displays or change mode, position, color, priority, or focus. A display
+deliberately disabled just before unplugging is indistinguishable from one KDE
+failed to restore, so the service only logs the outcome. If KDE does not
+restore the display, re-enable it deliberately in System Settings.
 
 Poll and settle timing defaults are in `/etc/kvm-display-recover.env`;
 per-user timing overrides can go in `~/.config/kvm-display-recover.env`.
