@@ -1,5 +1,5 @@
 [Unit]
-Description=Recover the right display after KVM reconnects
+Description=Preserve the KDE display layout after KVM reconnects
 After=graphical-session.target
 PartOf=graphical-session.target
 

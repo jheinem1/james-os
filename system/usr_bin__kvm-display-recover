@@ -1,175 +1,178 @@
-#!/usr/bin/env bash
-set -euo pipefail
+#!/usr/bin/env python3
+"""Restore a reconnected display only when KScreen still has its settings."""
 
-target_output="${KVM_DISPLAY_TARGET_OUTPUT:-DP-3}"
-expected_outputs_csv="${KVM_DISPLAY_EXPECTED_OUTPUTS:-DP-2,DP-3}"
-mode="${KVM_DISPLAY_MODE:-3840x2160@160}"
-position="${KVM_DISPLAY_POSITION:-1920,0}"
-scale="${KVM_DISPLAY_SCALE:-2}"
-drm_card="${KVM_DISPLAY_DRM_CARD:-card1}"
-poll_interval="${KVM_DISPLAY_POLL_INTERVAL_SECONDS:-0.5}"
-settle_delay="${KVM_DISPLAY_SETTLE_DELAY_SECONDS:-0.8}"
-settle_attempts="${KVM_DISPLAY_SETTLE_ATTEMPTS:-12}"
+import hashlib
+import json
+import os
+from pathlib import Path
+import re
+import subprocess
+import sys
+import time
 
-IFS=',' read -r -a expected_outputs <<< "$expected_outputs_csv"
-expected_count="${#expected_outputs[@]}"
 
-log() {
-  printf '[kvm-display-recover] %s\n' "$*" >&2
-}
+def log(message):
+    print(f"[kvm-display-recover] {message}", file=sys.stderr, flush=True)
 
-get_active_output() {
-  qdbus-qt6 org.kde.KWin /KWin activeOutputName 2>/dev/null || true
-}
 
-get_output_id() {
-  local output_name="$1"
-  kscreen-doctor -j | jq -r --arg name "$output_name" '.outputs[] | select(.name == $name) | .id' | head -n1
-}
+def drm_outputs(root=Path("/sys/class/drm")):
+    """Map unique physical display identities to their current connector names."""
+    result = {}
+    names = set()
+    for status in root.glob("card*-*/status"):
+        match = re.fullmatch(r"card[0-9]+-(.+)", status.parent.name)
+        if not match or match[1].startswith("Writeback-"):
+            continue
+        try:
+            if status.read_text().strip() != "connected":
+                continue
+            edid = (status.parent / "edid").read_bytes()
+        except OSError:
+            return None
+        name = match[1]
+        if len(edid) < 128 or not edid.startswith(b"\x00\xff\xff\xff\xff\xff\xff\x00"):
+            return None
+        identity = hashlib.sha256(edid).hexdigest()
+        if identity in result or name in names:
+            return None
+        result[identity] = name
+        names.add(name)
+    return result
 
-get_other_enabled_output_id() {
-  local output_name="$1"
-  kscreen-doctor -j | jq -r --arg name "$output_name" '.outputs[] | select(.name != $name and .enabled == true) | .id' | head -n1
-}
 
-connected_expected_count() {
-  local count=0
-  local output
-  local status_path
+def read_state(connectors):
+    try:
+        raw = subprocess.check_output(["kscreen-doctor", "-j"], timeout=4)
+        outputs = json.loads(raw)["outputs"]
+        connected = [o for o in outputs if o["connected"] is True]
+        by_name = {o["name"]: o for o in connected}
+        if len(by_name) != len(connected) or set(by_name) != set(connectors.values()):
+            return None
+        return {identity: by_name[name] for identity, name in connectors.items()}
+    except (OSError, subprocess.SubprocessError, ValueError, TypeError, KeyError):
+        return None
 
-  for output in "${expected_outputs[@]}"; do
-    status_path="/sys/class/drm/${drm_card}-${output}/status"
-    if [[ -r "$status_path" ]] && [[ "$(cat "$status_path")" == "connected" ]]; then
-      count=$((count + 1))
-    fi
-  done
 
-  printf '%s\n' "$count"
-}
+def comparable_settings(output):
+    """Compare all exposed settings apart from enumeration and enabled state."""
+    matches = [mode for mode in output["modes"] if mode["id"] == output["currentModeId"]]
+    if len(matches) != 1:
+        raise ValueError("active mode is not uniquely identifiable")
+    mode = matches[0]
+    # Mirroring uses transient output IDs; don't guess at restoring it.
+    if output.get("replicationSource") or output.get("clones"):
+        raise ValueError("mirrored configuration")
+    # Refuse incomplete snapshots instead of assuming default display options.
+    for key in ("pos", "scale", "rotation"):
+        output[key]
+    metadata = {"id", "name", "connected", "enabled", "priority", "modes",
+                "currentModeId", "preferredModes", "clones", "replicationSource"}
+    settings = {key: value for key, value in output.items() if key not in metadata}
+    settings["mode"] = {key: value for key, value in mode.items() if key != "id"}
+    return settings
 
-focus_target_output() {
-  local active
-  local shortcut
-  local attempt
 
-  case "$target_output" in
-    DP-3)
-      shortcut="Switch to Screen to the Right"
-      ;;
-    DP-2)
-      shortcut="Switch to Screen to the Left"
-      ;;
-    *)
-      log "unsupported target output for focus: $target_output"
-      return 1
-      ;;
-  esac
+def recovery_commands(target, before, after):
+    """Return an atomic KScreen update, or no update when preserve isn't safe."""
+    if not before or not after or before.keys() != after.keys() or target not in before:
+        return []
+    try:
+        if before[target]["enabled"] is not True or after[target]["enabled"] is not False:
+            return []
+        peers = before.keys() - {target}
+        if not any(before[p]["enabled"] is True for p in peers):
+            return []
+        if any(before[p]["enabled"] != after[p]["enabled"] for p in peers):
+            return []
+        if any(comparable_settings(before[k]) != comparable_settings(after[k]) for k in before):
+            return []
+        # After an unplug KDE compacts priorities. Restore previous ordering
+        # as part of the same apply, never in a separate transaction.
+        enabled = sorted((p for p in before if before[p]["enabled"] is True),
+                         key=lambda p: before[p]["priority"])
+        priorities = [before[p]["priority"] for p in enabled]
+        if priorities != list(range(1, len(priorities) + 1)):
+            return []
+        # KScreen could leave a user-reordered peer layout during an unplug;
+        # only accept an order matching the original with the target removed.
+        current_peer_order = sorted((p for p in enabled if p != target),
+                                    key=lambda p: after[p]["priority"])
+        if current_peer_order != [p for p in enabled if p != target]:
+            return []
+        ids = {p: after[p]["id"] for p in enabled}
+        if any(type(i) is not int or i <= 0 for i in ids.values()) or len(set(ids.values())) != len(ids):
+            return []
+        return [f"output.{ids[target]}.enable"] + [
+            f"output.{ids[p]}.priority.{before[p]['priority']}" for p in enabled
+        ]
+    except (KeyError, TypeError, ValueError):
+        return []
 
-  for attempt in 1 2 3 4; do
-    active="$(get_active_output)"
-    if [[ "$active" == "$target_output" ]]; then
-      return 0
-    fi
 
-    qdbus-qt6 org.kde.kglobalaccel /component/kwin \
-      org.kde.kglobalaccel.Component.invokeShortcut "$shortcut" >/dev/null
-    sleep 0.3
-  done
+def run():
+    poll = float(os.getenv("KVM_DISPLAY_POLL_INTERVAL_SECONDS", "0.5"))
+    settle = float(os.getenv("KVM_DISPLAY_SETTLE_DELAY_SECONDS", "0.8"))
+    attempts = int(os.getenv("KVM_DISPLAY_SETTLE_ATTEMPTS", "12"))
+    # The hotplug poll is cheap sysfs I/O. Avoid spawning Qt at that rate.
+    snapshot_interval = max(poll, 15.0)
+    good_connectors = None
+    good_state = None
+    missing = None
+    next_snapshot = 0.0
+    log("started; waiting for an unambiguous display topology")
+    while True:
+        connectors = drm_outputs()
+        if connectors is None:
+            # A missing or ambiguous EDID breaks the chain of identification.
+            good_connectors = good_state = missing = None
+            next_snapshot = 0.0
+        elif good_connectors is not None and connectors.keys() < good_connectors.keys():
+            absent = good_connectors.keys() - connectors.keys()
+            candidate = next(iter(absent)) if len(absent) == 1 else False
+            if missing is None:
+                missing = candidate
+            elif missing != candidate:
+                missing = False
+        elif missing and good_connectors is not None and connectors.keys() == good_connectors.keys():
+            target = missing
+            missing = None
+            for _ in range(attempts):
+                time.sleep(settle)
+                live = drm_outputs()
+                if live is None or live.keys() != good_connectors.keys():
+                    break
+                current = read_state(live)
+                if current is None:
+                    continue
+                # An already enabled output means KDE restored the layout;
+                # never toggle it or override its configuration.
+                if current[target].get("enabled") is True:
+                    log(f"{live[target]} reconnected and is already enabled; left unchanged")
+                    break
+                commands = recovery_commands(target, good_state, current)
+                if commands and drm_outputs() == live:
+                    try:
+                        subprocess.run(["kscreen-doctor", *commands], check=True, timeout=8)
+                        log(f"re-enabled {live[target]} with its existing settings")
+                    except (OSError, subprocess.SubprocessError) as exc:
+                        log(f"could not re-enable {live[target]}: {exc}")
+                    break
+            else:
+                log(f"could not verify retained settings for {connectors[target]}; left unchanged")
+            # Never use a pre-unplug baseline for a future reconnect.
+            good_connectors = good_state = None
+            next_snapshot = 0.0
+        elif connectors:
+            if missing is not None or good_connectors != connectors:
+                good_connectors = good_state = missing = None
+                next_snapshot = 0.0
+            if time.monotonic() >= next_snapshot:
+                next_snapshot = time.monotonic() + snapshot_interval
+                state = read_state(connectors)
+                if state is not None and drm_outputs() == connectors:
+                    good_connectors, good_state = connectors, state
+        time.sleep(poll)
 
-  active="$(get_active_output)"
-  [[ "$active" == "$target_output" ]]
-}
 
-recover_target_output() {
-  local status_path="/sys/class/drm/${drm_card}-${target_output}/status"
-  local target_output_id
-  local other_output_id
-
-  if [[ -r "$status_path" ]] && [[ "$(cat "$status_path")" != "connected" ]]; then
-    log "target output $target_output is not connected"
-    return 1
-  fi
-
-  target_output_id="$(get_output_id "$target_output")"
-  other_output_id="$(get_other_enabled_output_id "$target_output")"
-
-  if [[ -z "$target_output_id" || "$target_output_id" == "null" ]]; then
-    log "could not resolve KScreen output ID for $target_output"
-    return 1
-  fi
-
-  if [[ -z "$other_output_id" || "$other_output_id" == "null" ]]; then
-    log "could not resolve the other enabled output ID"
-    return 1
-  fi
-
-  kscreen-doctor "output.${target_output}.disable" >/dev/null || true
-  sleep "$settle_delay"
-  kscreen-doctor \
-    "output.${target_output}.enable" \
-    "output.${target_output}.mode.${mode}" \
-    "output.${target_output}.position.${position}" \
-    "output.${target_output}.scale.${scale}" \
-    "output.${other_output_id}.priority.2" \
-    "output.${target_output_id}.priority.1" \
-    "output.${target_output}.hdr.enable" \
-    "output.${target_output}.wcg.enable" >/dev/null
-}
-
-handle_reconnect() {
-  local settled=0
-  local attempt
-  local active
-
-  for attempt in $(seq 1 "$settle_attempts"); do
-    sleep "$settle_delay"
-    if (( "$(connected_expected_count)" == expected_count )); then
-      settled=1
-      break
-    fi
-  done
-
-  if (( settled == 0 )); then
-    log "outputs did not settle with all expected displays connected after $settle_attempts attempts"
-    return
-  fi
-
-  active="$(get_active_output)"
-  log "reconnect detected with active output ${active:-unknown}; recovering $target_output"
-
-  focus_target_output >/dev/null || true
-
-  if recover_target_output; then
-    log "recovered $target_output"
-  else
-    log "failed to recover $target_output"
-    return
-  fi
-
-  if focus_target_output; then
-    log "focused $target_output after recovery"
-  else
-    log "failed to focus $target_output after recovery"
-  fi
-}
-
-main() {
-  local last_connected_count
-  local current_connected_count
-
-  last_connected_count="$(connected_expected_count)"
-  log "started; expected outputs: ${expected_outputs[*]}, target: $target_output, connected: $last_connected_count/$expected_count"
-
-  while true; do
-    sleep "$poll_interval"
-    current_connected_count="$(connected_expected_count)"
-
-    if (( last_connected_count < expected_count && current_connected_count == expected_count )); then
-      handle_reconnect
-    fi
-
-    last_connected_count="$current_connected_count"
-  done
-}
-
-main "$@"
+if __name__ == "__main__":
+    run()
