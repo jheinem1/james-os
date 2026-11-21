@@ -66,16 +66,26 @@ changing that override. This fix preserves browser permission enforcement.
 ## KVM display recovery
 
 The image starts `kvm-display-recover.service` with the KDE graphical session.
-It reapplies the right display's configured mode and HDR settings after a KVM
-reconnect. Defaults are in `/etc/kvm-display-recover.env`; per-user overrides
-can be placed in `~/.config/kvm-display-recover.env`.
+It lets KDE restore the layout first and leaves already-enabled displays alone.
+If exactly one previously enabled display returns disabled, it can re-enable that
+same physical monitor only when its retained settings and the surrounding
+layout still match. It never selects a fixed resolution, refresh rate, position,
+scale, HDR, or wide color mode and never moves window focus. When the EDID,
+saved settings, or topology cannot be verified, use System Settings to recover
+the display manually.
+
+Poll and settle timing defaults are in `/etc/kvm-display-recover.env`;
+per-user timing overrides can go in `~/.config/kvm-display-recover.env`.
+Older target, connector, mode, position, and scale overrides are no longer
+used. An existing per-user systemd override pointing to an older private
+script must be retired separately to use the image's implementation.
 
 Older setups may still have `kvm-focus-daemon.service` enabled in their home
 directory. Both watchers reset the same display, so running them together can
 interfere with recovery. The image includes a systemd drop-in that skips the
 legacy service whenever `/usr/bin/kvm-display-recover` is installed, including
 when the legacy unit itself lives in `~/.config/systemd/user`. The old unit and
-scripts are retained, and the replacement's display settings are unchanged.
+scripts are retained.
 
 The guard takes effect when booting the updated image. To retire the duplicate
 immediately on an older running image that already has the replacement, run
