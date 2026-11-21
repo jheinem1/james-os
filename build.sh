@@ -163,12 +163,6 @@ if [ ! -d "$discord_root" ]; then
     exit 1
 fi
 
-if [ -t 1 ]; then
-    zenity=--no-zenity
-else
-    zenity=--zenity
-fi
-
 bootstrap=/usr/share/$BOOTSTRAP_SUFFIX
 if [ ! -x "$bootstrap" ]; then
     bootstrap=/opt/$BOOTSTRAP_SUFFIX
@@ -177,7 +171,20 @@ if [ ! -x "$bootstrap" ]; then
     fi
 fi
 
-if ! app_dir=`"$bootstrap" $zenity "$discord_root" $CHANNEL "$DOWNLOAD"`; then
+# The official bootstrap now opens its own setup window. Only request
+# terminal progress when launched from a terminal.
+bootstrap_progress=gui
+[ ! -t 1 ] || bootstrap_progress=terminal
+
+run_bootstrap() {
+    if [ "$bootstrap_progress" = terminal ]; then
+        "$bootstrap" --no-gui "$discord_root" "$CHANNEL" "$DOWNLOAD"
+    else
+        "$bootstrap" "$discord_root" "$CHANNEL" "$DOWNLOAD"
+    fi
+}
+
+if ! app_dir=$(run_bootstrap); then
     echo "Discord bootstrap failed or was canceled" >&2
     exit 2
 fi
