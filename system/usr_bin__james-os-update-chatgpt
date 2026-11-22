@@ -21,16 +21,18 @@ curl --proto '=https' --tlsv1.2 --fail --location --retry 3 \
   "https://persistent.oaistatic.com/codex-app-prod/linux/rpm/latest/chatgpt.${arch}.rpm" \
   -o "$work/chatgpt.rpm"
 
-# Enroll the key in a disposable database, not in the system RPM database.
-mkdir "$work/keydb"
-rpmkeys --dbpath "$work/keydb" --import \
+# Use the same disposable keyring for verification and the live RPM transaction.
+mkdir "$work/keyring"
+keyring=(--define '_keyring fs' --define "_keyringpath $work/keyring"
+         --define "_keyring_lockpath $work/keyring.lock")
+rpmkeys "${keyring[@]}" --import \
   /etc/pki/rpm-gpg/RPM-GPG-KEY-chatgpt-3BFA0E4AE8B8CC16A2D9BA684A3B4A566C4660E4.asc
-signature=$(LC_ALL=C rpmkeys --dbpath "$work/keydb" --checksig "$work/chatgpt.rpm")
+signature=$(LC_ALL=C rpmkeys "${keyring[@]}" --checksig "$work/chatgpt.rpm")
 printf '%s\n' "$signature"
 [[ "$signature" == *': digests signatures OK' ]] || { echo 'OpenAI package signature verification failed' >&2; exit 1; }
-identity=$(rpm -qp --queryformat '%{NAME} %{ARCH}' "$work/chatgpt.rpm")
+identity=$(rpm "${keyring[@]}" -qp --queryformat '%{NAME} %{ARCH}' "$work/chatgpt.rpm")
 [[ "$identity" == "chatgpt $arch" ]] || { echo "Unexpected package: $identity" >&2; exit 1; }
-available=$(rpm -qp --queryformat '%{VERSION}' "$work/chatgpt.rpm")
+available=$(rpm "${keyring[@]}" -qp --queryformat '%{VERSION}' "$work/chatgpt.rpm")
 [[ "$available" =~ ^[0-9]+([.][0-9]+)+$ ]] || { echo 'Invalid package version' >&2; exit 1; }
 if [[ "$installed" == "$available" ]]; then
   echo "ChatGPT/Codex Desktop $installed is current."
@@ -43,7 +45,7 @@ fi
 
 # Avoid repeating the disk-full failure that can also prevent OSTree's
 # shutdown finalization. The compressed download already occupies its space.
-unpacked=$(rpm -qp --queryformat '%{SIZE}' "$work/chatgpt.rpm")
+unpacked=$(rpm "${keyring[@]}" -qp --queryformat '%{SIZE}' "$work/chatgpt.rpm")
 free=$(df --output=avail -B1 "$work" | tail -n 1 | tr -d ' ')
 [[ "$unpacked" =~ ^[0-9]+$ && "$free" =~ ^[0-9]+$ ]] || { echo 'Cannot determine update space requirement' >&2; exit 1; }
 if (( free < unpacked + 1073741824 )); then
@@ -60,7 +62,7 @@ if [[ -e /run/ostree-booted ]]; then
     *) echo "Refusing unexpected OSTree unlock mode: $unlocked" >&2; exit 1 ;;
   esac
 fi
-rpm -Uvh "$work/chatgpt.rpm"
+rpm "${keyring[@]}" -Uvh "$work/chatgpt.rpm"
 
 # RPM upgrades replace the launcher; retain the image's canonical CODEX_HOME fix.
 cat > /usr/lib/chatgpt/codex-launcher <<'EOF'

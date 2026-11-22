@@ -87,9 +87,19 @@ elif cmd == 'df':
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(self.state.read_text(), '26.1002.52244')
         calls = self.calls()
+        enrolled = next(i for i, (c, a) in enumerate(calls) if c == 'rpmkeys' and '--import' in a)
         checked = next(i for i, (c, a) in enumerate(calls) if c == 'rpmkeys' and '--checksig' in a)
         unlocked = next(i for i, (c, a) in enumerate(calls) if c == 'rpm-ostree' and 'usroverlay' in a)
+        installed = next(i for i, (c, a) in enumerate(calls) if c == 'rpm' and '-Uvh' in a)
+        package = Path(calls[checked][1][-1])
+        keyring_args = ['--define', '_keyring fs', '--define', f'_keyringpath {package.parent / "keyring"}',
+                        '--define', f'_keyring_lockpath {package.parent / "keyring.lock"}']
+        for step in (enrolled, checked, installed):
+            self.assertEqual(calls[step][1][:len(keyring_args)], keyring_args)
+        self.assertNotIn('--dbpath', calls[installed][1])
+        self.assertLess(enrolled, checked)
         self.assertLess(checked, unlocked)
+        self.assertLess(unlocked, installed)
         self.assertIn('realpath -m', self.launcher.read_text())
         self.assertNotIn('restart', [a[0] for c, a in calls if c == 'systemctl'])
         self.assertEqual(list(self.root.glob('work.*')), [])
