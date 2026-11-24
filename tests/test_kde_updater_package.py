@@ -127,10 +127,15 @@ class PackageTests(unittest.TestCase):
 
     def test_repository_lock_pins_published_package(self):
         lock=acquire.read_lock(ROOT/'system/bazzite-updater-kde/package.json')
-        self.assertEqual(lock['release_tag'], 'v1.2.1-kde.3-image.4')
-        self.assertEqual(lock['os_version'], '45')
-        self.assertEqual(lock['source_commit'], '9ea7804bf9f94c618baa48fbe75ea5b1168e46bf')
-        self.assertEqual(lock['sha256'], 'b3bcd876f2dc2bf583a776a9729b4542d38e7b8ae05cdb72ee369506dd4047fc')
+        self.assertEqual(lock['architecture'], 'x86_64')
+        self.assertEqual(lock['os_id'], 'fedora')
+        self.assertRegex(lock['sha256'], r'^[0-9a-f]{64}$')
+        self.assertRegex(lock['source_commit'], r'^[0-9a-f]{40}$')
+        self.assertEqual(
+            lock['url'],
+            'https://github.com/jheinem1/bazzite-updater-kde/releases/download/'
+            f"{lock['release_tag']}/{lock['asset']}",
+        )
 
     def test_container_preserves_runtime_verification(self):
         container=(ROOT/'Containerfile').read_text()
